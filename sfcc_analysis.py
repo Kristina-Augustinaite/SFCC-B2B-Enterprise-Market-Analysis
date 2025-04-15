@@ -440,43 +440,50 @@ analysis_methodology = {
     }
 }
 
-# --- Corrected Data Generation ---
+# Sample data generation for visualizations (REVISED)
 def generate_actual_data():
     try:
+        # 1. DERIVE SEVERITY DATA RELIABLY
         # Always derive severity from the global pain_points dictionary
         severity_data_for_plot = global_severity_df[['Category', 'Severity']].copy()
+        # Add check to ensure it has the right columns immediately after creation
+        if not all(col in severity_data_for_plot.columns for col in ['Category', 'Severity']):
+             raise ValueError("Internal error: Generated severity data missing columns.")
 
-        # Generate time series data (Use 'ME' for month end frequency)
+        # 2. GENERATE TIME SERIES DATA
+        # Use 'ME' for month end frequency as 'M' is deprecated
         dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='ME')
         time_series_data = pd.DataFrame({
             'Date': dates,
             'Mentions': [15, 18, 22, 25, 20, 28, 30, 27, 32, 35, 33, 38]
         })
 
-        # Generate industry data
+        # 3. GENERATE INDUSTRY DATA
         industry_data = pd.DataFrame({
             'Industry': ['Retail', 'Manufacturing', 'Technology', 'Healthcare', 'Financial', 'Distribution', 'Automotive', 'Professional Services'],
             'Count': [25, 18, 15, 12, 10, 8, 7, 6],
             'Pain_Points': [15, 12, 8, 6, 5, 4, 3, 2]
         })
 
-        # Ensure consistent return order
+        # 4. RETURN IN CONSISTENT ORDER
         return severity_data_for_plot, time_series_data, industry_data
     except Exception as e:
-        st.error(f"Error generating data: {str(e)}")
+        st.error(f"Error generating initial analysis data: {str(e)}")
         # Return empty dataframes with expected columns on error
         return pd.DataFrame(columns=['Category', 'Severity']), pd.DataFrame(columns=['Date', 'Mentions']), pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# Generate the data
-severity_data, time_series_data, industry_data = generate_actual_data()
+# --- Generate and Plot Initial Data (REVISED) ---
+# Generate the data using the revised function
+generated_severity_data, generated_time_series_data, generated_industry_data = generate_actual_data()
 
-# --- Corrected Initial Plot Generation ---
 st.header("Initial Data Overview")
 
-# Plot Severity
-if severity_data is not None and not severity_data.empty and 'Category' in severity_data.columns and 'Severity' in severity_data.columns:
+# Plot Severity (Using the generated_severity_data)
+# Check the variable derived *directly* from the function return
+if generated_severity_data is not None and not generated_severity_data.empty and all(col in generated_severity_data.columns for col in ['Category', 'Severity']):
     try:
-        fig_severity = px.bar(severity_data, x='Category', y='Severity',
+        # Plot using the verified variable
+        fig_severity = px.bar(generated_severity_data, x='Category', y='Severity',
                              title='Overall Pain Points by Severity', color='Severity',
                              color_continuous_scale=['green', 'yellow', 'red'])
         fig_severity.update_layout(yaxis=dict(range=[0, 3.5]))
@@ -484,26 +491,28 @@ if severity_data is not None and not severity_data.empty and 'Category' in sever
     except Exception as e:
         st.error(f"Error generating severity plot: {e}")
 else:
-    st.warning("Initial Severity data unavailable or invalid.")
+    st.warning("Initial Severity data unavailable or invalid for plotting.")
 
-# Plot Time Series
-if time_series_data is not None and not time_series_data.empty and 'Date' in time_series_data.columns and 'Mentions' in time_series_data.columns:
+# Plot Time Series (Using the generated_time_series_data)
+# Check the variable derived *directly* from the function return
+if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
     try:
-        fig_time = px.line(time_series_data, x='Date', y='Mentions',
+        fig_time = px.line(generated_time_series_data, x='Date', y='Mentions',
                           title='Overall Pain Points Mentions Over Time')
-        # Safely calculate y-axis range
-        y_range_time = [0, time_series_data['Mentions'].max() * 1.2 if not time_series_data['Mentions'].empty else 10]
+        # Safely calculate y-axis range, checking for non-empty mentions
+        y_range_time = [0, generated_time_series_data['Mentions'].max() * 1.2 if not generated_time_series_data['Mentions'].empty else 10]
         fig_time.update_layout(yaxis=dict(range=y_range_time))
         st.plotly_chart(fig_time)
     except Exception as e:
         st.error(f"Error generating time series plot: {e}")
 else:
-    st.warning("Initial Time series data unavailable or invalid.")
+    st.warning("Initial Time series data unavailable or invalid for plotting.")
 
-# Plot Industry
-if industry_data is not None and not industry_data.empty and 'Industry' in industry_data.columns and 'Count' in industry_data.columns and 'Pain_Points' in industry_data.columns:
+# Plot Industry (Using the generated_industry_data)
+# Check the variable derived *directly* from the function return
+if generated_industry_data is not None and not generated_industry_data.empty and all(col in generated_industry_data.columns for col in ['Industry', 'Count', 'Pain_Points']):
     try:
-        fig_industry = px.bar(industry_data, x='Industry', y=['Count', 'Pain_Points'],
+        fig_industry = px.bar(generated_industry_data, x='Industry', y=['Count', 'Pain_Points'],
                              title='Overall Industry Distribution and Pain Points',
                              barmode='group')
         fig_industry.update_layout(xaxis_title="Industry", yaxis_title="Count", legend_title="Metric")
@@ -511,17 +520,17 @@ if industry_data is not None and not industry_data.empty and 'Industry' in indus
     except Exception as e:
         st.error(f"Error generating industry plot: {e}")
 else:
-    st.warning("Initial Industry data unavailable or invalid.")
+    st.warning("Initial Industry data unavailable or invalid for plotting.")
 
-# Sidebar filters
+# --- Sidebar filters (REVISED - use GENERATED data for setup) ---
 st.sidebar.header("⚙️ Filters")
 view_type = st.sidebar.radio("Select View", ["Detailed Analysis", "Raw Data"])
 
-# Extract unique quarters/periods and industries for filters, handle potential errors
+# Extract unique quarters/periods and industries for filters from GENERATED data
 available_quarters = []
-if time_series_data is not None and 'Date' in time_series_data.columns and not time_series_data.empty:
+if generated_time_series_data is not None and 'Date' in generated_time_series_data.columns and not generated_time_series_data.empty:
     try:
-        available_quarters = sorted(time_series_data['Date'].dt.to_period('Q').unique())
+        available_quarters = sorted(generated_time_series_data['Date'].dt.to_period('Q').unique())
     except Exception as e:
         st.sidebar.warning(f"Could not parse dates for filter: {e}")
 
@@ -529,45 +538,35 @@ default_start = available_quarters[0] if available_quarters else None
 default_end = available_quarters[-1] if available_quarters else None
 
 start_quarter = st.sidebar.select_slider(
-    "Select Start Quarter",
-    options=available_quarters,
-    value=default_start,
-    format_func=lambda q: q.strftime('%Y-Q%q') if q else "N/A",
-    disabled=not available_quarters
+    "Select Start Quarter", options=available_quarters, value=default_start,
+    format_func=lambda q: q.strftime('%Y-Q%q') if q else "N/A", disabled=not available_quarters
 )
 end_quarter = st.sidebar.select_slider(
-    "Select End Quarter",
-    options=available_quarters,
-    value=default_end,
-    format_func=lambda q: q.strftime('%Y-Q%q') if q else "N/A",
-    disabled=not available_quarters
+    "Select End Quarter", options=available_quarters, value=default_end,
+    format_func=lambda q: q.strftime('%Y-Q%q') if q else "N/A", disabled=not available_quarters
 )
 
-# Validate quarter selection
 if start_quarter and end_quarter and start_quarter > end_quarter:
     st.sidebar.error("Start quarter cannot be after end quarter.")
-    # Reset to defaults if invalid
-    start_quarter = default_start
-    end_quarter = default_end
+    start_quarter = default_start # Reset
+    end_quarter = default_end   # Reset
 
-# Industry filter
 available_industries = []
-if industry_data is not None and 'Industry' in industry_data.columns and not industry_data.empty:
-    available_industries = sorted(industry_data['Industry'].unique())
+if generated_industry_data is not None and 'Industry' in generated_industry_data.columns and not generated_industry_data.empty:
+    available_industries = sorted(generated_industry_data['Industry'].unique())
 
 industry_filter = st.sidebar.multiselect(
-    "Filter by Industry",
-    options=available_industries,
-    default=available_industries, # Select all by default
-    disabled=not available_industries
+    "Filter by Industry", options=available_industries,
+    default=available_industries, disabled=not available_industries
 )
 
-# Apply filters with better error handling
+# --- Apply filters (REVISED - use GENERATED data as base) ---
 time_series_data_filtered = pd.DataFrame()
 industry_data_filtered = pd.DataFrame()
-base_severity_data = severity_data
-base_time_series_data = time_series_data
-base_industry_data = industry_data
+# Use the variables holding the freshly generated data as the base for filtering
+base_severity_data = generated_severity_data
+base_time_series_data = generated_time_series_data
+base_industry_data = generated_industry_data
 
 try:
     # Filter Time Series Data
@@ -575,55 +574,42 @@ try:
         start_ts = start_quarter.start_time
         end_ts = end_quarter.end_time
         time_series_data_filtered = base_time_series_data[
-            (base_time_series_data['Date'] >= start_ts) &
-            (base_time_series_data['Date'] <= end_ts)
+            (base_time_series_data['Date'] >= start_ts) & (base_time_series_data['Date'] <= end_ts)
         ].copy()
     elif base_time_series_data is not None:
-        time_series_data_filtered = base_time_series_data.copy() # Use base if filtering not possible
+        time_series_data_filtered = base_time_series_data.copy()
 
     # Filter Industry Data
     if base_industry_data is not None and not base_industry_data.empty and 'Industry' in base_industry_data.columns and industry_filter:
-        industry_data_filtered = base_industry_data[
-            base_industry_data['Industry'].isin(industry_filter)
-        ].copy()
+        industry_data_filtered = base_industry_data[base_industry_data['Industry'].isin(industry_filter)].copy()
     elif base_industry_data is not None:
-        industry_data_filtered = base_industry_data.copy() # Use base if filtering not possible
+        industry_data_filtered = base_industry_data.copy()
 
-    # Update Current Data Variables
+    # Update Current Data Variables (The ones used for display)
     current_time_series_data = time_series_data_filtered if not time_series_data_filtered.empty else base_time_series_data
     current_industry_data = industry_data_filtered if not industry_data_filtered.empty else base_industry_data
-    current_severity_data = base_severity_data # Severity not filtered
+    current_severity_data = base_severity_data # Severity data isn't filtered
 
-    # Calculate Metrics Safely
-    total_mentions = 0
-    avg_mentions = 0
-    growth = 0
+    # Calculate Metrics Safely (using current_time_series_data)
+    total_mentions, avg_mentions, growth = 0, 0, 0
     if current_time_series_data is not None and not current_time_series_data.empty and 'Mentions' in current_time_series_data.columns:
         mentions_series = current_time_series_data['Mentions']
         if not mentions_series.empty:
             total_mentions = mentions_series.sum()
             avg_mentions = mentions_series.mean()
             if len(mentions_series) > 1:
-                first_mention = mentions_series.iloc[0]
-                last_mention = mentions_series.iloc[-1]
-                growth = ((last_mention / first_mention) - 1) * 100 if first_mention != 0 else float('inf')
+                first, last = mentions_series.iloc[0], mentions_series.iloc[-1]
+                growth = ((last / first) - 1) * 100 if first != 0 else float('inf')
 
 except Exception as e:
     st.sidebar.error(f"Error applying filters: {str(e)}")
-    # Fallback to base data
-    current_severity_data = base_severity_data
-    current_time_series_data = base_time_series_data
-    current_industry_data = base_industry_data
-    # Recalculate metrics based on base data if filtering failed
-    total_mentions = 0
-    avg_mentions = 0
-    growth = 0
-    if current_time_series_data is not None and not current_time_series_data.empty and 'Mentions' in current_time_series_data.columns:
-         mentions_series = current_time_series_data['Mentions']
-         if not mentions_series.empty:
-             total_mentions = mentions_series.sum()
-             avg_mentions = mentions_series.mean()
-             # ... (growth calculation if needed on fallback)
+    # Fallback to originally generated data if filtering fails
+    current_severity_data = generated_severity_data
+    current_time_series_data = generated_time_series_data
+    current_industry_data = generated_industry_data
+    # Recalculate metrics based on base data if needed
+    total_mentions, avg_mentions, growth = 0, 0, 0 # Reset metrics on error
+    # (Optional: Add metric recalc here if needed for fallback state)
 
 # --- Display Section ---
 # Display active filters
@@ -643,10 +629,11 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend - use current_time_series_data
-        if current_time_series_data is not None and not current_time_series_data.empty and 'Date' in current_time_series_data.columns and 'Mentions' in current_time_series_data.columns:
+        # Time series trend - Check current_time_series_data
+        if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
             try:
                 # Determine y-axis range safely for this plot
+                # Check non-empty mentions before calling max()
                 y_range_trend = [0, current_time_series_data['Mentions'].max() * 1.2 if not current_time_series_data['Mentions'].empty else 10]
 
                 fig_trend = go.Figure()
@@ -713,7 +700,7 @@ if view_type == "Detailed Analysis":
     else:
         st.warning("Severity data definition is missing.")
 
-elif view_type == "Raw Data": # Use elif for clarity
+elif view_type == "Raw Data":
     st.header("📄 Raw Data Tables (Filtered)")
 
     st.subheader("Time Series Mentions")
