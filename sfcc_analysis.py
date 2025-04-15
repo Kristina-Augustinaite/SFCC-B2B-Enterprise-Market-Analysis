@@ -438,7 +438,7 @@ analysis_methodology = {
     }
 }
 
-# Sample data generation for visualizations (REVISED AGAIN)
+# Sample data generation for visualizations
 def generate_actual_data():
     try:
         # 1. DERIVE SEVERITY DATA RELIABLY
@@ -466,48 +466,53 @@ def generate_actual_data():
         st.error(f"Error generating initial analysis data: {str(e)}")
         return pd.DataFrame(columns=['Category', 'Severity']), pd.DataFrame(columns=['Date', 'Mentions']), pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# --- Generate and Plot Initial Data (REVISED AGAIN) ---
+# --- Generate and Plot Initial Data ---
 generated_severity_data, generated_time_series_data, generated_industry_data = generate_actual_data()
-
 st.header("Initial Data Overview")
 
-# Plot Severity (Targeted Fix for Line 183 Error)
+# Plot Severity (Targeted Fix for Line 183 Error - ISOLATE DATA)
 st.subheader("Severity Plot Data Check:")
-st.write("Columns in severity data before plot:", generated_severity_data.columns.tolist() if generated_severity_data is not None else "None")
-st.dataframe(generated_severity_data.head() if generated_severity_data is not None else "None")
+# <<< Create a dedicated variable just for this plot >>>
+data_for_severity_plot = global_severity_df[['Category', 'Severity']].copy() if global_severity_df is not None else None
+st.write("Columns in data_for_severity_plot before plot:", data_for_severity_plot.columns.tolist() if data_for_severity_plot is not None else "None")
+st.dataframe(data_for_severity_plot.head() if data_for_severity_plot is not None else "None")
 
-if generated_severity_data is not None and not generated_severity_data.empty:
-    # <<< EXPLICIT CHECK FOR COLUMNS >>>
-    if all(col in generated_severity_data.columns for col in ['Category', 'Severity']):
+if data_for_severity_plot is not None and not data_for_severity_plot.empty:
+    if all(col in data_for_severity_plot.columns for col in ['Category', 'Severity']):
         try:
-            fig_severity = px.bar(generated_severity_data, x='Category', y='Severity',
+            # <<< Use the dedicated variable >>>
+            fig_severity = px.bar(data_for_severity_plot, x='Category', y='Severity',
                                  title='Overall Pain Points by Severity', color='Severity',
                                  color_continuous_scale=['green', 'yellow', 'red'])
             fig_severity.update_layout(yaxis=dict(range=[0, 3.5]))
             st.plotly_chart(fig_severity)
         except Exception as e:
-            st.error(f"Error during severity plot creation: {e}")
+            st.error(f"Error during severity plot creation (Line ~183): {e}")
+            st.exception(e) # Print full traceback
     else:
-        # Error if columns are wrong AFTER checking they exist in the DataFrame
-        st.error(f"CRITICAL ERROR: Severity data has wrong columns just before plotting! Found: {generated_severity_data.columns.tolist()}")
+        st.error(f"CRITICAL ERROR (Line ~183): Severity plot data has wrong columns! Found: {data_for_severity_plot.columns.tolist()}")
 else:
     st.warning("Initial Severity data unavailable or empty for plotting.")
 
-# Plot Time Series (Targeted Fix for Line 168 Error)
+# Plot Time Series (Targeted Fix for Line 168 Error - PRE-CALCULATE RANGE)
 if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
-    # <<< WRAP PLOT IN NON-EMPTY CHECK >>>
-    if not generated_time_series_data['Mentions'].empty:
+    mentions_initial = generated_time_series_data['Mentions']
+    if not mentions_initial.empty:
         try:
+            # <<< Pre-calculate range >>>
+            max_mentions_initial = mentions_initial.max()
+            y_range_initial = [0, max_mentions_initial * 1.2 if max_mentions_initial > 0 else 10]
+
             fig_time = px.line(generated_time_series_data, x='Date', y='Mentions',
                               title='Overall Pain Points Mentions Over Time')
-            max_mentions = generated_time_series_data['Mentions'].max()
-            y_range_time = [0, max_mentions * 1.2 if max_mentions > 0 else 10]
-            fig_time.update_layout(yaxis=dict(range=y_range_time))
+            # <<< Use pre-calculated range >>>
+            fig_time.update_layout(yaxis=dict(range=y_range_initial))
             st.plotly_chart(fig_time)
         except Exception as e:
-            st.error(f"Error generating time series plot: {e}")
+            st.error(f"Error generating initial time series plot (Line ~168): {e}")
+            st.exception(e) # Print full traceback
     else:
-        st.info("No initial time series mentions to plot.") # Inform if empty
+        st.info("No initial time series mentions to plot.")
 else:
     st.warning("Initial Time series data unavailable or invalid for plotting.")
 
@@ -632,17 +637,18 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend - (Targeted Fix for Line 188 Error)
+        # Time series trend (Targeted Fix for Line 188 Error - PRE-CALCULATE RANGE)
         if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
-            # <<< WRAP PLOT IN NON-EMPTY CHECK >>>
-            if not current_time_series_data['Mentions'].empty:
+            mentions_filtered = current_time_series_data['Mentions']
+            if not mentions_filtered.empty:
                 try:
-                    max_mentions_trend = current_time_series_data['Mentions'].max()
-                    y_range_trend = [0, max_mentions_trend * 1.2 if max_mentions_trend > 0 else 10]
+                    # <<< Pre-calculate range >>>
+                    max_mentions_filtered = mentions_filtered.max()
+                    y_range_filtered = [0, max_mentions_filtered * 1.2 if max_mentions_filtered > 0 else 10]
 
                     fig_trend = go.Figure()
                     fig_trend.add_trace(go.Scatter(
-                        x=current_time_series_data['Date'], y=current_time_series_data['Mentions'],
+                        x=current_time_series_data['Date'], y=mentions_filtered,
                         fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.1)',
                         line=dict(color='#FF4B4B', width=3), mode='lines+markers+text',
                         text=current_time_series_data['Mentions'], textposition='top center',
@@ -653,7 +659,7 @@ if view_type == "Detailed Analysis":
                     fig_trend.update_layout(
                         title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
                         height=450, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                        yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_trend, tickformat='d'),
+                        yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_filtered, tickformat='d'),
                         xaxis=dict(title="Date", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)'),
                         showlegend=False, hovermode='x unified'
                     )
@@ -671,9 +677,10 @@ if view_type == "Detailed Analysis":
                     st.info("�� **Trend Analysis (Filtered):** Reflects mentions within the selected time period and industries.")
 
                 except Exception as e:
-                    st.error(f"Error generating filtered trend plot: {e}")
+                    st.error(f"Error generating filtered trend plot (Line ~188): {e}")
+                    st.exception(e) # Print full traceback
             else:
-                 st.info("No time series mentions to plot for the selected filters.") # Inform if empty
+                 st.info("No time series mentions to plot for the selected filters.")
         else:
             st.warning("Filtered Time series data unavailable or invalid for plotting.")
 
