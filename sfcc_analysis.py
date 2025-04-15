@@ -469,14 +469,17 @@ Detailed breakdowns by industry and time period are available below.
 """)
 st.markdown("---")
 
-# --- Plot Initial Data --- (With fixes)
+# --- Plot Initial Data (REVISED) ---
 st.header("Initial Data Overview")
 
 # Plot Severity - Use global_severity_df directly and check columns
 st.subheader("Overall Pain Points by Severity")
 if global_severity_df is not None and not global_severity_df.empty:
+    # Check required columns explicitly before trying
     if all(col in global_severity_df.columns for col in ['Category', 'Severity']):
         try:
+            # <<< Add explicit check INSIDE try block >>>
+            st.write("Columns passed to px.bar for severity:", global_severity_df.columns.tolist())
             fig_severity = px.bar(global_severity_df, x='Category', y='Severity',
                                  color='Severity', color_continuous_scale=['green', 'yellow', 'red'])
             fig_severity.update_layout(yaxis_title="Severity Level (1-3)", xaxis_title="Pain Point Category", yaxis=dict(range=[0, 3.5]))
@@ -489,27 +492,31 @@ if global_severity_df is not None and not global_severity_df.empty:
 else:
     st.warning("Global Severity data unavailable.")
 
-# Plot Time Series - Strengthen try/except for range calculation
+# Plot Time Series - Check empty before plot AND use try/except for range
 st.subheader("Overall Pain Points Mentions Over Time")
 if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
-    try:
-        fig_time = px.line(generated_time_series_data, x='Date', y='Mentions')
-        # Calculate range with strengthened try/except
-        y_range_initial = [0, 10] # Start with default
+    # <<< Check if DataFrame has rows BEFORE plotting >>>
+    if not generated_time_series_data.empty:
         try:
-            mentions_initial = generated_time_series_data['Mentions']
-            if not mentions_initial.empty:
-                max_mentions_initial = mentions_initial.max()
-                if pd.notna(max_mentions_initial) and max_mentions_initial > 0:
-                     y_range_initial = [0, max_mentions_initial * 1.2]
-        except (ValueError, TypeError): # Catch errors during max() or comparison
-            pass # Keep default range [0, 10]
+            fig_time = px.line(generated_time_series_data, x='Date', y='Mentions')
+            # Calculate range with strengthened try/except
+            y_range_initial = [0, 10] # Start with default
+            try:
+                mentions_initial = generated_time_series_data['Mentions']
+                if not mentions_initial.empty:
+                    max_mentions_initial = mentions_initial.max()
+                    if pd.notna(max_mentions_initial) and max_mentions_initial > 0:
+                         y_range_initial = [0, max_mentions_initial * 1.2]
+            except (ValueError, TypeError): # Catch errors during max() or comparison
+                pass # Keep default range [0, 10]
 
-        fig_time.update_layout(yaxis_title="Number of Mentions", xaxis_title="Date", yaxis=dict(range=y_range_initial))
-        st.plotly_chart(fig_time)
-    except Exception as e:
-        st.error(f"Error plotting initial time series (Line ~168): {e}")
-        st.exception(e)
+            fig_time.update_layout(yaxis_title="Number of Mentions", xaxis_title="Date", yaxis=dict(range=y_range_initial))
+            st.plotly_chart(fig_time)
+        except Exception as e:
+            st.error(f"Error plotting initial time series (Line ~168): {e}")
+            st.exception(e)
+    else:
+        st.info("No initial time series data to plot.") # Inform if DataFrame is empty
 else:
     st.warning("Initial Time series data unavailable or invalid.")
 
@@ -661,50 +668,54 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend - Strengthen try/except for range calculation
+        # Time series trend - Check empty before plot AND use try/except for range
         if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
-            try:
-                fig_trend = go.Figure()
-                fig_trend.add_trace(go.Scatter(
-                    x=current_time_series_data['Date'], y=current_time_series_data['Mentions'],
-                    fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.1)',
-                    line=dict(color='#FF4B4B', width=3), mode='lines+markers+text',
-                    text=current_time_series_data['Mentions'], textposition='top center',
-                    marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
-                    hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
-                ))
-                # Calculate range with strengthened try/except
-                y_range_filtered = [0, 10] # Start with default
+             # <<< Check if DataFrame has rows BEFORE plotting >>>
+            if not current_time_series_data.empty:
                 try:
-                    mentions_filtered = current_time_series_data['Mentions']
-                    if not mentions_filtered.empty:
-                        max_mentions_filtered = mentions_filtered.max()
-                        if pd.notna(max_mentions_filtered) and max_mentions_filtered > 0:
-                             y_range_filtered = [0, max_mentions_filtered * 1.2]
-                except (ValueError, TypeError): # Catch errors during max() or comparison
-                     pass # Keep default range [0, 10]
+                    fig_trend = go.Figure()
+                    fig_trend.add_trace(go.Scatter(
+                        x=current_time_series_data['Date'], y=current_time_series_data['Mentions'],
+                        fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.1)',
+                        line=dict(color='#FF4B4B', width=3), mode='lines+markers+text',
+                        text=current_time_series_data['Mentions'], textposition='top center',
+                        marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
+                        hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
+                    ))
+                    # Calculate range with strengthened try/except
+                    y_range_filtered = [0, 10] # Start with default
+                    try:
+                        mentions_filtered = current_time_series_data['Mentions']
+                        if not mentions_filtered.empty:
+                            max_mentions_filtered = mentions_filtered.max()
+                            if pd.notna(max_mentions_filtered) and max_mentions_filtered > 0:
+                                 y_range_filtered = [0, max_mentions_filtered * 1.2]
+                    except (ValueError, TypeError): # Catch errors during max() or comparison
+                         pass # Keep default range [0, 10]
 
-                fig_trend.update_layout(
-                    title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
-                    height=450, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_filtered, tickformat='d'),
-                    xaxis=dict(title="Date", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)'),
-                    showlegend=False, hovermode='x unified'
-                )
-                st.plotly_chart(fig_trend, use_container_width=True)
-                # Metrics display
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Mentions (Filtered)", f"{total_mentions:,}")
-                with col2:
-                    st.metric("Average Monthly (Filtered)", f"{avg_mentions:.1f}")
-                with col3:
-                    growth_display = f"{growth:.0f}%" if growth != float('inf') else "∞%"
-                    st.metric("Overall Growth (Filtered)", growth_display, delta="↗️" if growth > 0 else ("➡️" if growth == 0 else "↘️"))
-                st.info("🔍 **Trend Analysis (Filtered):** Reflects mentions within the selected time period and industries.")
-            except Exception as e:
-                st.error(f"Error generating filtered trend plot (Line ~188): {e}")
-                st.exception(e)
+                    fig_trend.update_layout(
+                        title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+                        height=450, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                        yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_filtered, tickformat='d'),
+                        xaxis=dict(title="Date", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)'),
+                        showlegend=False, hovermode='x unified'
+                    )
+                    st.plotly_chart(fig_trend, use_container_width=True)
+                    # Metrics display
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Mentions (Filtered)", f"{total_mentions:,}")
+                    with col2:
+                        st.metric("Average Monthly (Filtered)", f"{avg_mentions:.1f}")
+                    with col3:
+                        growth_display = f"{growth:.0f}%" if growth != float('inf') else "∞%"
+                        st.metric("Overall Growth (Filtered)", growth_display, delta="↗️" if growth > 0 else ("➡️" if growth == 0 else "↘️"))
+                    st.info("🔍 **Trend Analysis (Filtered):** Reflects mentions within the selected time period and industries.")
+                except Exception as e:
+                    st.error(f"Error generating filtered trend plot (Line ~188): {e}")
+                    st.exception(e)
+            else:
+                 st.info("No filtered time series data to plot.") # Inform if DataFrame is empty
         else:
             st.warning("Filtered Time series data unavailable or invalid for plotting.")
 
