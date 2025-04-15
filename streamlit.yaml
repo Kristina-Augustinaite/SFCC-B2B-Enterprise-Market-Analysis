@@ -1,0 +1,13 @@
+name: sfcc-b2b-analysis
+description: SFCC B2B/Enterprise Market Analysis Dashboard
+owner: kristina.augustinaite@shopify.com
+app:
+  entrypoint: sfcc_analysis.py
+  requirements: requirements.txt
+resources:
+  cpu: 1
+  memory: 2Gi
+environment:
+  STREAMLIT_SERVER_PORT: "8502"
+  STREAMLIT_SERVER_ADDRESS: "0.0.0.0"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false" 
