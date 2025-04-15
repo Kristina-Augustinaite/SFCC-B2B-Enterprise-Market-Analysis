@@ -613,8 +613,48 @@ if active_filters:
 
 if view_type == "Detailed Analysis":
     st.header("🔎 Detailed Analysis (Filtered)")
-    # ... (Keep Methodology section) ...
+    
+    # <<< ADD Methodology Section >>>
+    with st.expander("🔬 Analysis Methodology & Data Processing", expanded=False):
+        st.markdown("**Data Source:**")
+        st.caption(analysis_methodology["transcript_filtering"]["source"])
+        st.markdown(f"**Total Sentences Analyzed:** {analysis_methodology['transcript_filtering']['total_sentences']}")
 
+        st.markdown("**Filtering Criteria:**")
+        for criterion in analysis_methodology["transcript_filtering"]["filtering_criteria"]:
+            st.markdown(f"- {criterion}")
+
+        st.markdown("**Filtering Process:**")
+        for i, step in enumerate(analysis_methodology["transcript_filtering"]["filtering_process"]):
+             st.markdown(f"{step}") # Use numbered steps if needed, or keep as list
+
+        st.markdown("**Sentiment Analysis Approach:**")
+        for section in analysis_methodology["sentiment_analysis"]["approach"]:
+             st.markdown(f"- {section}")
+
+        st.markdown("**Industry Examples (Pain Points, Challenges, Integrations):**")
+        # Display industry examples more neatly
+        industry_tabs = st.tabs(analysis_methodology["sentiment_analysis"]["industry_examples"].keys())
+        for i, (industry, details) in enumerate(analysis_methodology["sentiment_analysis"]["industry_examples"].items()):
+            with industry_tabs[i]:
+                st.markdown(f"**{industry}**")
+                if "Pain Points" in details:
+                    st.markdown("***Pain Points:***")
+                    for point in details["Pain Points"]:
+                        st.caption(f"- {point}")
+                if "Technical Challenges" in details:
+                    st.markdown("***Technical Challenges:***")
+                    for challenge in details["Technical Challenges"]:
+                        st.caption(f"- {challenge}")
+                if "Integrations" in details:
+                    st.markdown("***Integrations:***")
+                    for integration in details["Integrations"]:
+                         st.caption(f"- {integration}")
+                # Optionally display detailed use cases if needed
+                # if "Detailed Use Cases" in details:
+                #    st.json(details["Detailed Use Cases"])
+
+    # --- Filtered Data Overview ---
     st.subheader("📊 Filtered Data Overview")
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
