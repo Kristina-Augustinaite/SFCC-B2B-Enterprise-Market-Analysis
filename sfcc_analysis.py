@@ -611,37 +611,65 @@ if active_filters:
 if view_type == "Detailed Analysis":
     st.header("🔎 Detailed Analysis (Filtered)")
     
-    # <<< ENSURE Methodology Section is present >>>
+    # <<< RESTORE Methodology Section with defensive checks >>>
     with st.expander("🔬 Analysis Methodology & Data Processing", expanded=False):
-        st.markdown("**Data Source:**")
-        st.caption(analysis_methodology["transcript_filtering"]["source"])
-        st.markdown(f"**Total Sentences Analyzed:** {analysis_methodology['transcript_filtering']['total_sentences']}")
-        st.markdown("**Filtering Criteria:**")
-        for criterion in analysis_methodology["transcript_filtering"]["filtering_criteria"]:
-            st.markdown(f"- {criterion}")
-        st.markdown("**Filtering Process:**")
-        for i, step in enumerate(analysis_methodology["transcript_filtering"]["filtering_process"]):
-             st.markdown(f"{step}")
-        st.markdown("**Sentiment Analysis Approach:**")
-        for section in analysis_methodology["sentiment_analysis"]["approach"]:
-             st.markdown(f"- {section}")
-        st.markdown("**Industry Examples (Pain Points, Challenges, Integrations):**")
-        industry_tabs = st.tabs(analysis_methodology["sentiment_analysis"]["industry_examples"].keys())
-        for i, (industry, details) in enumerate(analysis_methodology["sentiment_analysis"]["industry_examples"].items()):
-            with industry_tabs[i]:
-                st.markdown(f"**{industry}**")
-                if "Pain Points" in details:
-                    st.markdown("***Pain Points:***")
-                    for point in details["Pain Points"]:
-                        st.caption(f"- {point}")
-                if "Technical Challenges" in details:
-                    st.markdown("***Technical Challenges:***")
-                    for challenge in details["Technical Challenges"]:
-                        st.caption(f"- {challenge}")
-                if "Integrations" in details:
-                    st.markdown("***Integrations:***")
-                    for integration in details["Integrations"]:
-                         st.caption(f"- {integration}")
+        # Check if the main key exists
+        if "transcript_filtering" in analysis_methodology:
+            filtering_info = analysis_methodology["transcript_filtering"]
+            st.markdown("**Data Source:**")
+            st.caption(filtering_info.get("source", "N/A")) # Use .get() for safety
+            st.markdown(f"**Total Sentences Analyzed:** {filtering_info.get('total_sentences', 'N/A')}")
+            
+            if "filtering_criteria" in filtering_info:
+                st.markdown("**Filtering Criteria:**")
+                for criterion in filtering_info["filtering_criteria"]:
+                    st.markdown(f"- {criterion}")
+            
+            if "filtering_process" in filtering_info:
+                st.markdown("**Filtering Process:**")
+                for i, step in enumerate(filtering_info["filtering_process"]):
+                    st.markdown(f"{step}")
+            
+            # <<< Defensive check for sentiment_analysis section >>>
+            if "sentiment_analysis" in filtering_info and isinstance(filtering_info["sentiment_analysis"], dict):
+                sentiment_info = filtering_info["sentiment_analysis"]
+                
+                if "approach" in sentiment_info and isinstance(sentiment_info["approach"], list):
+                    st.markdown("**Sentiment Analysis Approach:**")
+                    for section in sentiment_info["approach"]:
+                        st.markdown(f"- {section}")
+                else:
+                     st.warning("Sentiment analysis approach details are missing or invalid.")
+
+                if "industry_examples" in sentiment_info and isinstance(sentiment_info["industry_examples"], dict):
+                    st.markdown("**Industry Examples (Pain Points, Challenges, Integrations):**")
+                    industry_examples = sentiment_info["industry_examples"]
+                    if industry_examples: # Check if dict is not empty
+                         industry_tabs = st.tabs(industry_examples.keys())
+                         for i, (industry, details) in enumerate(industry_examples.items()):
+                             with industry_tabs[i]:
+                                 st.markdown(f"**{industry}**")
+                                 # Use .get() for nested details for extra safety
+                                 if details.get("Pain Points"):
+                                     st.markdown("***Pain Points:***")
+                                     for point in details["Pain Points"]:
+                                         st.caption(f"- {point}")
+                                 if details.get("Technical Challenges"):
+                                     st.markdown("***Technical Challenges:***")
+                                     for challenge in details["Technical Challenges"]:
+                                         st.caption(f"- {challenge}")
+                                 if details.get("Integrations"):
+                                     st.markdown("***Integrations:***")
+                                     for integration in details["Integrations"]:
+                                         st.caption(f"- {integration}")
+                    else:
+                        st.warning("Industry examples data is empty.")
+                else:
+                    st.warning("Industry examples details are missing or invalid.")
+            else:
+                st.warning("Sentiment analysis details are missing or invalid in methodology data.")
+        else:
+            st.warning("Transcript filtering details are missing in methodology data.")
 
     # --- Filtered Data Overview ---
     st.subheader("📊 Filtered Data Overview")
