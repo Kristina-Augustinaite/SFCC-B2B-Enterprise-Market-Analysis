@@ -440,10 +440,10 @@ analysis_methodology = {
     }
 }
 
-# Sample data generation for visualizations
+# --- Corrected Data Generation ---
 def generate_actual_data():
     try:
-        # Use the globally defined severity derived from pain_points
+        # Always derive severity from the global pain_points dictionary
         severity_data_for_plot = global_severity_df[['Category', 'Severity']].copy()
 
         # Generate time series data (Use 'ME' for month end frequency)
@@ -460,6 +460,7 @@ def generate_actual_data():
             'Pain_Points': [15, 12, 8, 6, 5, 4, 3, 2]
         })
 
+        # Ensure consistent return order
         return severity_data_for_plot, time_series_data, industry_data
     except Exception as e:
         st.error(f"Error generating data: {str(e)}")
@@ -469,7 +470,7 @@ def generate_actual_data():
 # Generate the data
 severity_data, time_series_data, industry_data = generate_actual_data()
 
-# --- Initial Plot Generation (REPLACED) ---
+# --- Corrected Initial Plot Generation ---
 st.header("Initial Data Overview")
 
 # Plot Severity
@@ -636,13 +637,13 @@ if active_filters:
 
 if view_type == "Detailed Analysis":
     st.header("🔎 Detailed Analysis (Filtered)")
-    # ... (Existing Methodology section) ...
+    # ... (Keep Methodology section) ...
 
     st.subheader("📊 Filtered Data Overview")
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
-    # --- Trend Tab (REPLACED) ---
     with overview_tab1:
+        # Time series trend - use current_time_series_data
         if current_time_series_data is not None and not current_time_series_data.empty and 'Date' in current_time_series_data.columns and 'Mentions' in current_time_series_data.columns:
             try:
                 # Determine y-axis range safely for this plot
@@ -684,21 +685,24 @@ if view_type == "Detailed Analysis":
             st.warning("No time series data to display for the selected filters.")
 
     with overview_tab2:
-        # Industry distribution - check data validity
-        if current_industry_data is not None and not current_industry_data.empty and all(col in current_industry_data.columns for col in ['Industry', 'Count', 'Pain_Points']):
-            fig_industry = px.bar(current_industry_data, x='Industry', y=['Count', 'Pain_Points'],
-                                 title='Industry Distribution (Filtered)',
-                                 barmode='group',
-                                 labels={'value': 'Count', 'variable': 'Metric'})
-            fig_industry.update_layout(
-                height=400,
-                template="plotly_dark",
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                yaxis=dict(gridcolor='rgba(128,128,128,0.1)'),
-                xaxis=dict(gridcolor='rgba(128,128,128,0.1)')
-            )
-            st.plotly_chart(fig_industry, use_container_width=True)
+        # Industry distribution - use current_industry_data
+        if current_industry_data is not None and not current_industry_data.empty and 'Industry' in current_industry_data.columns and 'Count' in current_industry_data.columns and 'Pain_Points' in current_industry_data.columns:
+            try:
+                fig_industry = px.bar(current_industry_data, x='Industry', y=['Count', 'Pain_Points'],
+                                     title='Industry Distribution (Filtered)',
+                                     barmode='group',
+                                     labels={'value': 'Count', 'variable': 'Metric'})
+                fig_industry.update_layout(
+                    height=400,
+                    template="plotly_dark",
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    yaxis=dict(gridcolor='rgba(128,128,128,0.1)'),
+                    xaxis=dict(gridcolor='rgba(128,128,128,0.1)')
+                )
+                st.plotly_chart(fig_industry, use_container_width=True)
+            except Exception as e:
+                st.error(f"Error generating filtered industry plot: {e}")
         else:
             st.warning("No industry data to display for the selected filters.")
 
