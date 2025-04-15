@@ -40,11 +40,9 @@ pain_points = {
 
 # Convert pain_points dict to DataFrame for consistent severity visualization
 global_severity_df = pd.DataFrame.from_dict(pain_points, orient='index').reset_index()
-global_severity_df.columns = ['Category', 'details']
-global_severity_df['Severity_Label'] = global_severity_df['details'].apply(lambda x: x['severity'])
+global_severity_df.columns = ['Category', 'Description', 'Severity_Label']
 severity_map = {'Low': 1, 'Medium': 2, 'High': 3}
 global_severity_df['Severity'] = global_severity_df['Severity_Label'].map(severity_map)
-global_severity_df['Description'] = global_severity_df['details'].apply(lambda x: x['description'])
 
 # Analysis methodology and keywords
 analysis_methodology = {
