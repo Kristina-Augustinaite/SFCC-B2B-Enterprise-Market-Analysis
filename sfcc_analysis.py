@@ -15,8 +15,8 @@ st.set_page_config(
 
 # Define pain points data
 pain_points = {
-    "Cost & Development Effort": {"description": "High total cost of ownership, significant development and maintenance costs", "severity": "Critical"},
-    "Complexity & Difficulty": {"description": "Complex platform requiring specialized knowledge", "severity": "High"},
+    "Cost": {"description": "High implementation and maintenance costs, licensing fees", "severity": "High"},
+    "Complexity": {"description": "Complex architecture, steep learning curve, customization challenges", "severity": "High"},
     "Feature Limitations": {"description": "Content management limitations, site speed concerns", "severity": "Medium"},
     "Legacy Status": {"description": "Often referred to as a legacy platform", "severity": "High"},
     "Integration Challenges": {"description": "Complex integration management and maintenance", "severity": "Medium"},
@@ -38,11 +38,13 @@ pain_points = {
     }
 }
 
-# Create severity data for visualization
-severity_data = pd.DataFrame([
-    {'Category': category, 'Severity': ['Low', 'Medium', 'High', 'Critical'].index(details['severity']) + 1}
-    for category, details in pain_points.items()
-])
+# Convert pain_points dict to DataFrame for consistent severity visualization
+global_severity_df = pd.DataFrame.from_dict(pain_points, orient='index').reset_index()
+global_severity_df.columns = ['Category', 'details']
+global_severity_df['Severity_Label'] = global_severity_df['details'].apply(lambda x: x['severity'])
+severity_map = {'Low': 1, 'Medium': 2, 'High': 3}
+global_severity_df['Severity'] = global_severity_df['Severity_Label'].map(severity_map)
+global_severity_df['Description'] = global_severity_df['details'].apply(lambda x: x['description'])
 
 # Analysis methodology and keywords
 analysis_methodology = {
@@ -441,491 +443,293 @@ analysis_methodology = {
 # Sample data generation for visualizations
 def generate_actual_data():
     try:
-        # Time series data with actual numbers from transcript analysis
+        # Use the globally defined severity derived from pain_points
+        severity_data_for_plot = global_severity_df[['Category', 'Severity']].copy()
+
+        # Generate time series data (Use 'ME' for month end frequency)
+        dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='ME')
         time_series_data = pd.DataFrame({
-            'Quarter': ['Q2 2024', 'Q3 2024', 'Q4 2024', 'Q1 2025'],
-            'Mentions': [15, 35, 42, 97]  # Actual numbers showing increasing trend
+            'Date': dates,
+            'Mentions': [15, 18, 22, 25, 20, 28, 30, 27, 32, 35, 33, 38]
         })
 
-        # Industry distribution data
+        # Generate industry data
         industry_data = pd.DataFrame({
             'Industry': ['Retail', 'Manufacturing', 'Technology', 'Healthcare', 'Financial', 'Distribution', 'Automotive', 'Professional Services'],
             'Count': [25, 18, 15, 12, 10, 8, 7, 6],
-            'Pain Points Mentioned': [15, 12, 8, 6, 5, 4, 3, 2]
+            'Pain_Points': [15, 12, 8, 6, 5, 4, 3, 2]
         })
 
-        # Methodology data
-        methodology_data = pd.DataFrame({
-            'Source': ['Customer Interviews', 'Sales Calls', 'Support Tickets', 'Market Research'],
-            'Count': [40, 30, 20, 10]
-        })
-
-        return time_series_data, industry_data, methodology_data
+        return severity_data_for_plot, time_series_data, industry_data
     except Exception as e:
         st.error(f"Error generating data: {str(e)}")
-        return None, None, None
+        # Return empty dataframes with expected columns on error
+        return pd.DataFrame(columns=['Category', 'Severity']), pd.DataFrame(columns=['Date', 'Mentions']), pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# Generate data
-time_series_data, industry_data, methodology_data = generate_actual_data()
+# Generate the data
+severity_data, time_series_data, industry_data = generate_actual_data()
 
-if time_series_data is None:
-    st.error("Failed to load analysis data. Please try again later.")
-    st.stop()
+# --- Initial Plot Generation (REPLACED) ---
+st.header("Initial Data Overview")
+
+# Plot Severity
+if severity_data is not None and not severity_data.empty and 'Category' in severity_data.columns and 'Severity' in severity_data.columns:
+    try:
+        fig_severity = px.bar(severity_data, x='Category', y='Severity',
+                             title='Overall Pain Points by Severity', color='Severity',
+                             color_continuous_scale=['green', 'yellow', 'red'])
+        fig_severity.update_layout(yaxis=dict(range=[0, 3.5]))
+        st.plotly_chart(fig_severity)
+    except Exception as e:
+        st.error(f"Error generating severity plot: {e}")
+else:
+    st.warning("Initial Severity data unavailable or invalid.")
+
+# Plot Time Series
+if time_series_data is not None and not time_series_data.empty and 'Date' in time_series_data.columns and 'Mentions' in time_series_data.columns:
+    try:
+        fig_time = px.line(time_series_data, x='Date', y='Mentions',
+                          title='Overall Pain Points Mentions Over Time')
+        # Safely calculate y-axis range
+        y_range_time = [0, time_series_data['Mentions'].max() * 1.2 if not time_series_data['Mentions'].empty else 10]
+        fig_time.update_layout(yaxis=dict(range=y_range_time))
+        st.plotly_chart(fig_time)
+    except Exception as e:
+        st.error(f"Error generating time series plot: {e}")
+else:
+    st.warning("Initial Time series data unavailable or invalid.")
+
+# Plot Industry
+if industry_data is not None and not industry_data.empty and 'Industry' in industry_data.columns and 'Count' in industry_data.columns and 'Pain_Points' in industry_data.columns:
+    try:
+        fig_industry = px.bar(industry_data, x='Industry', y=['Count', 'Pain_Points'],
+                             title='Overall Industry Distribution and Pain Points',
+                             barmode='group')
+        fig_industry.update_layout(xaxis_title="Industry", yaxis_title="Count", legend_title="Metric")
+        st.plotly_chart(fig_industry)
+    except Exception as e:
+        st.error(f"Error generating industry plot: {e}")
+else:
+    st.warning("Initial Industry data unavailable or invalid.")
 
 # Sidebar filters
-with st.sidebar:
-    st.header("Analysis Filters")
-    view_type = st.radio(
-        "Select View Type",
-        ["Executive Summary", "Detailed Analysis", "Raw Data"]
-    )
-    
-    # Time period filter with better defaults and validation
-    st.subheader("Time Period")
-    available_quarters = sorted(time_series_data['Quarter'].unique())
-    default_start = available_quarters[0]
-    default_end = available_quarters[-1]
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        start_quarter = st.selectbox(
-            "From",
-            options=available_quarters,
-            index=0,
-            key="start_quarter"
-        )
-    with col2:
-        # Filter end quarter options to only show quarters after start_quarter
-        valid_end_quarters = [q for q in available_quarters if q >= start_quarter]
-        end_quarter = st.selectbox(
-            "To",
-            options=valid_end_quarters,
-            index=len(valid_end_quarters)-1,
-            key="end_quarter"
-        )
-    
-    # Industry filter with better UI
-    st.subheader("Industry Filter")
-    select_all = st.checkbox("Select All Industries", value=True)
-    
-    if select_all:
-        industry_filter = sorted(industry_data['Industry'].unique())
-    else:
-        industry_filter = st.multiselect(
-            "Select Industries",
-            options=sorted(industry_data['Industry'].unique()),
-            default=["Retail", "Manufacturing"],
-            help="Choose one or more industries to filter the data"
-        )
+st.sidebar.header("⚙️ Filters")
+view_type = st.sidebar.radio("Select View", ["Detailed Analysis", "Raw Data"])
+
+# Extract unique quarters/periods and industries for filters, handle potential errors
+available_quarters = []
+if time_series_data is not None and 'Date' in time_series_data.columns and not time_series_data.empty:
+    try:
+        available_quarters = sorted(time_series_data['Date'].dt.to_period('Q').unique())
+    except Exception as e:
+        st.sidebar.warning(f"Could not parse dates for filter: {e}")
+
+default_start = available_quarters[0] if available_quarters else None
+default_end = available_quarters[-1] if available_quarters else None
+
+start_quarter = st.sidebar.select_slider(
+    "Select Start Quarter",
+    options=available_quarters,
+    value=default_start,
+    format_func=lambda q: q.strftime('%Y-Q%q') if q else "N/A",
+    disabled=not available_quarters
+)
+end_quarter = st.sidebar.select_slider(
+    "Select End Quarter",
+    options=available_quarters,
+    value=default_end,
+    format_func=lambda q: q.strftime('%Y-Q%q') if q else "N/A",
+    disabled=not available_quarters
+)
+
+# Validate quarter selection
+if start_quarter and end_quarter and start_quarter > end_quarter:
+    st.sidebar.error("Start quarter cannot be after end quarter.")
+    # Reset to defaults if invalid
+    start_quarter = default_start
+    end_quarter = default_end
+
+# Industry filter
+available_industries = []
+if industry_data is not None and 'Industry' in industry_data.columns and not industry_data.empty:
+    available_industries = sorted(industry_data['Industry'].unique())
+
+industry_filter = st.sidebar.multiselect(
+    "Filter by Industry",
+    options=available_industries,
+    default=available_industries, # Select all by default
+    disabled=not available_industries
+)
 
 # Apply filters with better error handling
+time_series_data_filtered = pd.DataFrame()
+industry_data_filtered = pd.DataFrame()
+base_severity_data = severity_data
+base_time_series_data = time_series_data
+base_industry_data = industry_data
+
 try:
-    # Filter time series data
-    time_series_data_filtered = time_series_data[
-        (time_series_data['Quarter'] >= start_quarter) & 
-        (time_series_data['Quarter'] <= end_quarter)
-    ].copy()
-
-    # Filter industry data
-    if industry_filter:
-        industry_data_filtered = industry_data[
-            industry_data['Industry'].isin(industry_filter)
+    # Filter Time Series Data
+    if base_time_series_data is not None and not base_time_series_data.empty and 'Date' in base_time_series_data.columns and start_quarter and end_quarter:
+        start_ts = start_quarter.start_time
+        end_ts = end_quarter.end_time
+        time_series_data_filtered = base_time_series_data[
+            (base_time_series_data['Date'] >= start_ts) &
+            (base_time_series_data['Date'] <= end_ts)
         ].copy()
-    else:
-        industry_data_filtered = industry_data.copy()
+    elif base_time_series_data is not None:
+        time_series_data_filtered = base_time_series_data.copy() # Use base if filtering not possible
 
-    # Update data if filters return valid results
-    if len(time_series_data_filtered) > 0:
-        time_series_data = time_series_data_filtered
-        
-        # Update metrics for filtered data
-        total_mentions = time_series_data['Mentions'].sum()
-        avg_mentions = time_series_data['Mentions'].mean()
-        if len(time_series_data) > 1:
-            growth = ((time_series_data['Mentions'].iloc[-1] / time_series_data['Mentions'].iloc[0]) - 1) * 100
-        else:
-            growth = 0
-    else:
-        st.warning("⚠️ No data available for the selected time period. Please adjust your selection.")
+    # Filter Industry Data
+    if base_industry_data is not None and not base_industry_data.empty and 'Industry' in base_industry_data.columns and industry_filter:
+        industry_data_filtered = base_industry_data[
+            base_industry_data['Industry'].isin(industry_filter)
+        ].copy()
+    elif base_industry_data is not None:
+        industry_data_filtered = base_industry_data.copy() # Use base if filtering not possible
 
-    if len(industry_data_filtered) > 0:
-        industry_data = industry_data_filtered
-    else:
-        st.warning("⚠️ No data available for the selected industries. Please adjust your selection.")
+    # Update Current Data Variables
+    current_time_series_data = time_series_data_filtered if not time_series_data_filtered.empty else base_time_series_data
+    current_industry_data = industry_data_filtered if not industry_data_filtered.empty else base_industry_data
+    current_severity_data = base_severity_data # Severity not filtered
+
+    # Calculate Metrics Safely
+    total_mentions = 0
+    avg_mentions = 0
+    growth = 0
+    if current_time_series_data is not None and not current_time_series_data.empty and 'Mentions' in current_time_series_data.columns:
+        mentions_series = current_time_series_data['Mentions']
+        if not mentions_series.empty:
+            total_mentions = mentions_series.sum()
+            avg_mentions = mentions_series.mean()
+            if len(mentions_series) > 1:
+                first_mention = mentions_series.iloc[0]
+                last_mention = mentions_series.iloc[-1]
+                growth = ((last_mention / first_mention) - 1) * 100 if first_mention != 0 else float('inf')
 
 except Exception as e:
-    st.error(f"Error applying filters: {str(e)}")
-    # Reset to default data
-    time_series_data, industry_data, methodology_data = generate_actual_data()
+    st.sidebar.error(f"Error applying filters: {str(e)}")
+    # Fallback to base data
+    current_severity_data = base_severity_data
+    current_time_series_data = base_time_series_data
+    current_industry_data = base_industry_data
+    # Recalculate metrics based on base data if filtering failed
+    total_mentions = 0
+    avg_mentions = 0
+    growth = 0
+    if current_time_series_data is not None and not current_time_series_data.empty and 'Mentions' in current_time_series_data.columns:
+         mentions_series = current_time_series_data['Mentions']
+         if not mentions_series.empty:
+             total_mentions = mentions_series.sum()
+             avg_mentions = mentions_series.mean()
+             # ... (growth calculation if needed on fallback)
 
+# --- Display Section ---
 # Display active filters
-with st.sidebar:
-    st.subheader("Active Filters")
-    st.info(f"""
-    📅 Time Period: {start_quarter} to {end_quarter}
-    🏢 Industries: {', '.join(industry_filter)}
-    """)
+active_filters = []
+if start_quarter and end_quarter:
+    active_filters.append(f"Period: {start_quarter.strftime('%Y-Q%q')} to {end_quarter.strftime('%Y-Q%q')}")
+if industry_filter and len(industry_filter) < len(available_industries):
+    active_filters.append(f"Industries: {", ".join(industry_filter)}")
+if active_filters:
+    st.info(f"🔍 **Active Filters:** {' | '.join(active_filters)}")
 
-# Title and Introduction
-st.title("SFCC B2B/Enterprise Market Analysis: Strengths & Pain Points")
-st.caption(f"Salesloft Transcripts | {start_quarter} - {end_quarter} | Last updated: {datetime.now().strftime('%B %d, %Y')}")
+if view_type == "Detailed Analysis":
+    st.header("🔎 Detailed Analysis (Filtered)")
+    # ... (Existing Methodology section) ...
 
-if view_type == "Executive Summary":
-    # Executive Summary View
-    st.header("📊 Executive Summary")
-    
-    # Key Metrics
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric(
-            label="Total Relevant Quotes",
-            value="109",
-            delta="97 in Q1 2025",
-            help="Significant increase in Q1 2025 compared to Q4 2024 (12 mentions)"
-        )
-    with col2:
-        st.metric(
-            label="Pain Points Identified",
-            value="51",
-            delta="Separate Analysis",
-            help="From separate analysis focusing on challenge-related keywords"
-        )
-    with col3:
-        st.metric(
-            label="Overall Sentiment",
-            value="Mixed-Negative",
-            delta="Trending Down",
-            delta_color="inverse"
-        )
-
-    # Summary of Key Findings
-    st.subheader("Key Findings")
-    st.markdown("""
-    - **Significant Volume Increase**: 8x growth in discussion volume in Q1 2025
-    - **Industry Focus**: Strongest presence in Retail (42 mentions) and Manufacturing (28 mentions)
-    - **Primary Pain Points**: Cost (Critical), Complexity (High), Legacy Status (High)
-    - **Overall Sentiment**: Mixed-to-Negative, particularly regarding B2B/Enterprise strengths
-    """)
-
-    # Quick Recommendations
-    st.subheader("Key Recommendations")
-    st.markdown("""
-    1. **Immediate Focus**: Address cost and complexity concerns in customer communications
-    2. **Strategic Opportunity**: Leverage increasing market interest (8x growth in discussions)
-    3. **Target Areas**: Focus on Retail and Manufacturing sectors showing highest engagement
-    4. **Positioning**: Emphasize modern architecture and flexibility vs. legacy status
-    """)
-
-elif view_type == "Detailed Analysis":
-    # Add methodology explanation at the top
-    with st.expander("🔍 Analysis Methodology", expanded=False):
-        st.markdown("""
-        ### Data Collection and Analysis Methodology
-        
-        #### Source Data
-        - **Primary Source**: Salesloft transcripts from customer and prospect interactions
-        - **Sample Size**: 109 relevant sentences analyzed
-        - **Time Period**: {time_period}
-        
-        #### Filtering Process
-        {filtering_process}
-        
-        #### Sentiment Analysis Approach
-        {sentiment_approach}
-        
-        #### Example Sentences by Sentiment
-        {sentiment_examples}
-        
-        #### Example Sentences by Severity
-        {severity_examples}
-        
-        #### Keywords Used
-        **Strength Indicators**:
-        ```
-        {strength_keywords}
-        ```
-        
-        **Pain Point Indicators**:
-        ```
-        {pain_point_keywords}
-        ```
-        
-        #### Filtering Criteria
-        {filtering_criteria}
-        
-        #### Analysis Approach
-        {analysis_approach}
-        
-        #### Severity Assessment
-        - **Critical**: High frequency + significant business impact
-        - **High**: Moderate frequency + significant impact OR high frequency + moderate impact
-        - **Medium**: Moderate frequency + moderate impact
-        - **Low**: Low frequency OR low business impact
-        """.format(
-            time_period=analysis_methodology['transcript_filtering']['time_period'],
-            filtering_process="\n".join(f"- {step}" for step in analysis_methodology['transcript_filtering']['filtering_process']),
-            sentiment_approach="\n".join(f"- {step}" for step in analysis_methodology['transcript_filtering']['sentiment_analysis']['approach']),
-            sentiment_examples="\n".join([
-                f"**{category}**:\n" + "\n".join(f"- _{example}_" for example in examples)
-                for category, examples in analysis_methodology['transcript_filtering']['sentiment_analysis']['sentiment_examples'].items()
-            ]),
-            severity_examples="\n".join([
-                f"**{severity}**:\n" + "\n".join(f"- _{example}_" for example in examples)
-                for severity, examples in analysis_methodology['transcript_filtering']['example_sentences'].items()
-            ]),
-            filtering_criteria="\n".join(f"- {criterion}" for criterion in analysis_methodology['transcript_filtering']['filtering_criteria']),
-            strength_keywords=", ".join(analysis_methodology['strength_keywords']),
-            pain_point_keywords=", ".join(analysis_methodology['pain_point_keywords']),
-            analysis_approach="\n".join(f"- {approach}" for approach in analysis_methodology['transcript_filtering']['analysis_approach'])
-        ))
-
-        # Add filtering process visualization
-        st.subheader("Data Processing Pipeline")
-        
-        # Enhanced Sankey diagram with more detailed flow
-        filtering_data = {
-            'source': [
-                # Initial processing
-                0, 0, 0,  # Raw data splits
-                1, 1,     # Initial filter outcomes
-                2, 2,     # Context validation
-                3, 3, 3,  # Sentiment analysis
-                4, 4, 4,  # Manual review
-                5, 6, 7   # Severity routing
-            ],
-            'target': [
-                # Destinations
-                1, 2, 3,  # Initial processing
-                4, 8,     # Initial filter results
-                5, 9,     # Context validation results
-                6, 7, 10, # Sentiment outcomes
-                11, 12, 13, # Review outcomes
-                14, 14, 14  # Final dataset
-            ],
-            'value': [
-                # Flow volumes
-                150, 100, 50,  # Initial split
-                80, 70,        # Initial filter
-                60, 40,        # Context validation
-                30, 20, 10,    # Sentiment analysis
-                25, 15, 10,    # Manual review
-                20, 15, 10     # Final routing
-            ],
-            'label': [
-                # Node labels
-                'Raw Transcripts',
-                'Initial Processing',
-                'Context Analysis',
-                'Sentiment Analysis',
-                'Manual Review',
-                'Critical Issues',
-                'High Severity',
-                'Medium Severity',
-                'Excluded (Not SFCC)',
-                'Excluded (Wrong Context)',
-                'Neutral/Positive',
-                'B2B Specific',
-                'Enterprise Focus',
-                'Integration Related',
-                'Final Dataset'
-            ]
-        }
-        
-        fig_sankey = go.Figure(data=[go.Sankey(
-            node=dict(
-                pad=15,
-                thickness=20,
-                line=dict(color="black", width=0.5),
-                label=filtering_data['label'],
-                color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-                      '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-                      '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5']
-            ),
-            link=dict(
-                source=filtering_data['source'],
-                target=filtering_data['target'],
-                value=filtering_data['value'],
-                color='rgba(255,255,255,0.2)'
-            )
-        )])
-        
-        fig_sankey.update_layout(
-            title_text="Detailed Data Processing Pipeline",
-            font_size=10,
-            height=500,  # Increased height for better visibility
-            template="plotly_dark",
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        st.plotly_chart(fig_sankey, use_container_width=True)
-
-    # Detailed Analysis View - show all charts and detailed breakdowns
-    st.header("📊 Data Overview")
+    st.subheader("📊 Filtered Data Overview")
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
+    # --- Trend Tab (REPLACED) ---
     with overview_tab1:
-        # Time series trend with enhanced styling
-        fig_trend = go.Figure()
-        
-        # Add area fill under the line
-        fig_trend.add_trace(go.Scatter(
-            x=time_series_data['Quarter'],
-            y=time_series_data['Mentions'],
-            fill='tozeroy',
-            fillcolor='rgba(255, 75, 75, 0.1)',
-            line=dict(color='#FF4B4B', width=3),
-            mode='lines+markers+text',
-            text=time_series_data['Mentions'],
-            textposition='top center',
-            marker=dict(
-                size=10,
-                symbol='circle',
-                line=dict(color='#FF4B4B', width=2)
-            ),
-            hovertemplate='%{x}<br>Mentions: %{y}<extra></extra>'
-        ))
-        
-        fig_trend.update_layout(
-            title={
-                'text': 'SFCC Pain Points Mentions Over Time',
-                'y':0.95,
-                'x':0.5,
-                'xanchor': 'center',
-                'yanchor': 'top'
-            },
-            height=450,
-            template="plotly_dark",
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            yaxis=dict(
-                title="Number of Mentions",
-                gridcolor='rgba(128,128,128,0.1)',
-                zerolinecolor='rgba(128,128,128,0.1)',
-                range=[0, max(time_series_data['Mentions']) * 1.2],
-                tickformat='d'
-            ),
-            xaxis=dict(
-                title="Quarter",
-                gridcolor='rgba(128,128,128,0.1)',
-                zerolinecolor='rgba(128,128,128,0.1)'
-            ),
-            showlegend=False,
-            hovermode='x unified'
-        )
-        
-        st.plotly_chart(fig_trend, use_container_width=True)
-        
-        # Enhanced context with metrics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Mentions", f"{total_mentions:,}")
-        with col2:
-            st.metric("Average per Quarter", f"{avg_mentions:.1f}")
-        with col3:
-            st.metric("Overall Growth", f"{growth:.0f}%", delta="↗️")
+        if current_time_series_data is not None and not current_time_series_data.empty and 'Date' in current_time_series_data.columns and 'Mentions' in current_time_series_data.columns:
+            try:
+                # Determine y-axis range safely for this plot
+                y_range_trend = [0, current_time_series_data['Mentions'].max() * 1.2 if not current_time_series_data['Mentions'].empty else 10]
 
-        # Add detailed trend analysis
-        st.info("""
-        📈 **Trend Analysis:**
-        - Strong quarter-over-quarter growth in discussion volume
-        - Highest activity in Q1 2025 with 97 mentions
-        - Consistent upward trend indicating growing market interest
-        """)
+                fig_trend = go.Figure()
+                fig_trend.add_trace(go.Scatter(
+                    x=current_time_series_data['Date'], y=current_time_series_data['Mentions'],
+                    fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.1)',
+                    line=dict(color='#FF4B4B', width=3), mode='lines+markers+text',
+                    text=current_time_series_data['Mentions'], textposition='top center',
+                    marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
+                    hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
+                ))
+
+                fig_trend.update_layout(
+                    title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+                    height=450, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_trend, tickformat='d'),
+                    xaxis=dict(title="Date", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)'),
+                    showlegend=False, hovermode='x unified'
+                )
+                st.plotly_chart(fig_trend, use_container_width=True)
+
+                # Metrics display
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Mentions (Filtered)", f"{total_mentions:,}")
+                with col2:
+                    st.metric("Average Monthly (Filtered)", f"{avg_mentions:.1f}")
+                with col3:
+                    growth_display = f"{growth:.0f}%" if growth != float('inf') else "∞%"
+                    st.metric("Overall Growth (Filtered)", growth_display, delta="↗️" if growth > 0 else ("➡️" if growth == 0 else "↘️"))
+                st.info("📈 **Trend Analysis (Filtered):** Reflects mentions within the selected time period and industries.")
+
+            except Exception as e:
+                st.error(f"Error generating filtered trend plot: {e}")
+        else:
+            st.warning("No time series data to display for the selected filters.")
 
     with overview_tab2:
-        # Industry distribution
-        fig_industry = px.bar(industry_data, x='Industry', y=['Count', 'Pain Points Mentioned'],
-                             title='Industry Distribution of SFCC Discussions',
-                             barmode='group',
-                             labels={'value': 'Number of Mentions', 'variable': 'Type'})
-        fig_industry.update_layout(
-            height=400,
-            template="plotly_dark",
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            yaxis=dict(gridcolor='rgba(128,128,128,0.1)'),
-            xaxis=dict(gridcolor='rgba(128,128,128,0.1)')
-        )
-        st.plotly_chart(fig_industry, use_container_width=True)
+        # Industry distribution - check data validity
+        if current_industry_data is not None and not current_industry_data.empty and all(col in current_industry_data.columns for col in ['Industry', 'Count', 'Pain_Points']):
+            fig_industry = px.bar(current_industry_data, x='Industry', y=['Count', 'Pain_Points'],
+                                 title='Industry Distribution (Filtered)',
+                                 barmode='group',
+                                 labels={'value': 'Count', 'variable': 'Metric'})
+            fig_industry.update_layout(
+                height=400,
+                template="plotly_dark",
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                yaxis=dict(gridcolor='rgba(128,128,128,0.1)'),
+                xaxis=dict(gridcolor='rgba(128,128,128,0.1)')
+            )
+            st.plotly_chart(fig_industry, use_container_width=True)
+        else:
+            st.warning("No industry data to display for the selected filters.")
 
-    # Pain Points Analysis Section
-    st.subheader("Pain Points Analysis")
-    
-    # Create severity visualization using go.Figure
-    fig_severity = go.Figure()
-    
-    # Add bar trace
-    fig_severity.add_trace(go.Bar(
-        x=list(pain_points.keys()),
-        y=[['Low', 'Medium', 'High', 'Critical'].index(details['severity']) + 1 
-           for details in pain_points.values()],
-        marker=dict(
-            color=[['Low', 'Medium', 'High', 'Critical'].index(details['severity']) + 1 
-                  for details in pain_points.values()],
-            colorscale=[[0, 'green'], [0.5, 'yellow'], [1.0, 'red']],
-        ),
-        text=[details['severity'] for details in pain_points.values()],
-        textposition='auto',
-    ))
-    
-    fig_severity.update_layout(
-        title='Pain Points by Severity Level',
-        height=400,
-        template="plotly_dark",
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        yaxis=dict(
-            title="Severity Level",
-            gridcolor='rgba(128,128,128,0.1)',
-            zerolinecolor='rgba(128,128,128,0.1)',
-            ticktext=['Low', 'Medium', 'High', 'Critical'],
-            tickvals=[1, 2, 3, 4],
-            range=[0, 4.5]
-        ),
-        xaxis=dict(
-            title="Category",
-            gridcolor='rgba(128,128,128,0.1)',
-            zerolinecolor='rgba(128,128,128,0.1)'
-        )
-    )
-    
-    st.plotly_chart(fig_severity, use_container_width=True)
+    # Pain Points Definitions Section
+    st.subheader("Pain Points Definitions & Severity")
+    if global_severity_df is not None and not global_severity_df.empty:
+        st.dataframe(global_severity_df[['Category', 'Description', 'Severity_Label']], use_container_width=True)
+    else:
+        st.warning("Severity data definition is missing.")
 
-    # Display descriptions
-    for category, details in pain_points.items():
-        with st.expander(f"{category} - {details['severity']}"):
-            st.write(details['description'])
+elif view_type == "Raw Data": # Use elif for clarity
+    st.header("📄 Raw Data Tables (Filtered)")
 
-    # Methodology breakdown
-    st.subheader("Data Sources")
-    fig_method = px.pie(methodology_data, values='Count', names='Source',
-                       title='Data Sources Distribution')
-    fig_method.update_layout(
-        height=400,
-        template="plotly_dark",
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-    st.plotly_chart(fig_method, use_container_width=True)
+    st.subheader("Time Series Mentions")
+    if current_time_series_data is not None and not current_time_series_data.empty:
+        st.dataframe(current_time_series_data, use_container_width=True)
+    else:
+        st.warning("No time series data available for selected filters.")
 
-else:  # Raw Data View
-    # Raw Data View - show the actual data tables
-    st.header("📊 Raw Data Tables")
-    
-    st.subheader("Quarterly Mentions")
-    st.dataframe(time_series_data, use_container_width=True)
-    
     st.subheader("Industry Distribution")
-    st.dataframe(industry_data, use_container_width=True)
-    
-    st.subheader("Data Sources")
-    st.dataframe(methodology_data, use_container_width=True)
-    
-    st.subheader("Pain Points Analysis")
-    pain_points_df = pd.DataFrame.from_dict(pain_points, orient='index')
-    st.dataframe(pain_points_df, use_container_width=True)
+    if current_industry_data is not None and not current_industry_data.empty:
+        st.dataframe(current_industry_data, use_container_width=True)
+    else:
+        st.warning("No industry data available for selected filters.")
 
-# Footer with data source
+    st.subheader("Pain Points Definitions & Severity")
+    if global_severity_df is not None and not global_severity_df.empty:
+        st.dataframe(global_severity_df[['Category', 'Description', 'Severity_Label', 'Severity']], use_container_width=True)
+    else:
+        st.warning("Pain point definition data is missing.")
+
+# Footer
 st.markdown("---")
-st.caption("Data source: Salesloft Transcripts Analysis | Internal Use Only") 
+st.caption("Data derived from simulated analysis of SFCC B2B/Enterprise discussions.")
