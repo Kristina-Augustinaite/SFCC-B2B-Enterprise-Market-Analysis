@@ -438,7 +438,7 @@ analysis_methodology = {
     }
 }
 
-# --- Generate Data Directly (FINAL REVISION 2 - No function call) ---
+# --- Generate Data Directly ---
 try:
     # 1. GENERATE TIME SERIES DATA DIRECTLY
     dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='ME')
@@ -446,7 +446,6 @@ try:
         'Date': dates,
         'Mentions': [15, 18, 22, 25, 20, 28, 30, 27, 32, 35, 33, 38]
     })
-
     # 2. GENERATE INDUSTRY DATA DIRECTLY
     generated_industry_data = pd.DataFrame({
         'Industry': ['Retail', 'Manufacturing', 'Technology', 'Healthcare', 'Financial', 'Distribution', 'Automotive', 'Professional Services'],
@@ -458,7 +457,7 @@ except Exception as e:
     generated_time_series_data = pd.DataFrame(columns=['Date', 'Mentions'])
     generated_industry_data = pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# --- Plot Initial Data (FINAL REVISION 2) ---
+# --- Plot Initial Data ---
 st.header("Initial Data Overview")
 
 # <<< Plot Severity - TEMPORARILY COMMENTED OUT FOR DEBUGGING >>>
@@ -479,21 +478,22 @@ st.header("Initial Data Overview")
 #     st.warning("Global Severity data unavailable.")
 st.warning("Initial Severity Plot temporarily disabled for debugging.") # Add warning
 
-# Plot Time Series - Check data and add try/except for range calculation
+# Plot Time Series - Add try/except for range calculation
 st.subheader("Overall Pain Points Mentions Over Time")
 if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
     try:
         fig_time = px.line(generated_time_series_data, x='Date', y='Mentions')
-        # <<< Calculate range with try/except >>>
+        # Calculate range with try/except
         try:
             mentions_initial = generated_time_series_data['Mentions']
+            y_range_initial = [0, 10] # Default range
             if not mentions_initial.empty:
                 max_mentions_initial = mentions_initial.max()
-                y_range_initial = [0, max_mentions_initial * 1.2 if max_mentions_initial > 0 else 10]
-            else:
-                y_range_initial = [0, 10] # Default if empty
-        except ValueError: # Catch error if max() fails
-            y_range_initial = [0, 10] # Default on error
+                # Only update range if max > 0
+                if max_mentions_initial > 0:
+                     y_range_initial = [0, max_mentions_initial * 1.2]
+        except ValueError: # Catch potential error during max()
+            y_range_initial = [0, 10] # Fallback range
 
         fig_time.update_layout(yaxis_title="Number of Mentions", xaxis_title="Date", yaxis=dict(range=y_range_initial))
         st.plotly_chart(fig_time)
@@ -659,7 +659,7 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend - Check data and add try/except for range calculation
+        # Time series trend - Add try/except for range calculation
         if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
             try:
                 fig_trend = go.Figure()
@@ -671,16 +671,17 @@ if view_type == "Detailed Analysis":
                     marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
                     hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
                 ))
-                # <<< Calculate range with try/except >>>
+                # Calculate range with try/except
                 try:
                     mentions_filtered = current_time_series_data['Mentions']
+                    y_range_filtered = [0, 10] # Default range
                     if not mentions_filtered.empty:
                         max_mentions_filtered = mentions_filtered.max()
-                        y_range_filtered = [0, max_mentions_filtered * 1.2 if max_mentions_filtered > 0 else 10]
-                    else:
-                         y_range_filtered = [0, 10] # Default if empty
-                except ValueError: # Catch error if max() fails
-                     y_range_filtered = [0, 10] # Default on error
+                        # Only update range if max > 0
+                        if max_mentions_filtered > 0:
+                             y_range_filtered = [0, max_mentions_filtered * 1.2]
+                except ValueError: # Catch potential error during max()
+                     y_range_filtered = [0, 10] # Fallback range
 
                 fig_trend.update_layout(
                     title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
