@@ -440,72 +440,68 @@ analysis_methodology = {
     }
 }
 
-# Sample data generation for visualizations (REVISED)
+# Sample data generation for visualizations (REVISED AGAIN)
 def generate_actual_data():
     try:
         # 1. DERIVE SEVERITY DATA RELIABLY
-        # Always derive severity from the global pain_points dictionary
-        severity_data_for_plot = global_severity_df[['Category', 'Severity']].copy()
-        # Add check to ensure it has the right columns immediately after creation
-        if not all(col in severity_data_for_plot.columns for col in ['Category', 'Severity']):
+        severity_df = global_severity_df[['Category', 'Severity']].copy()
+        if not all(col in severity_df.columns for col in ['Category', 'Severity']):
              raise ValueError("Internal error: Generated severity data missing columns.")
 
         # 2. GENERATE TIME SERIES DATA
-        # Use 'ME' for month end frequency as 'M' is deprecated
         dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='ME')
-        time_series_data = pd.DataFrame({
+        time_series_df = pd.DataFrame({
             'Date': dates,
             'Mentions': [15, 18, 22, 25, 20, 28, 30, 27, 32, 35, 33, 38]
         })
 
         # 3. GENERATE INDUSTRY DATA
-        industry_data = pd.DataFrame({
+        industry_df = pd.DataFrame({
             'Industry': ['Retail', 'Manufacturing', 'Technology', 'Healthcare', 'Financial', 'Distribution', 'Automotive', 'Professional Services'],
             'Count': [25, 18, 15, 12, 10, 8, 7, 6],
             'Pain_Points': [15, 12, 8, 6, 5, 4, 3, 2]
         })
 
         # 4. RETURN IN CONSISTENT ORDER
-        return severity_data_for_plot, time_series_data, industry_data
+        return severity_df, time_series_df, industry_df
     except Exception as e:
         st.error(f"Error generating initial analysis data: {str(e)}")
-        # Return empty dataframes with expected columns on error
         return pd.DataFrame(columns=['Category', 'Severity']), pd.DataFrame(columns=['Date', 'Mentions']), pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# --- Generate and Plot Initial Data (REVISED) ---
-# Generate the data using the revised function
+# --- Generate and Plot Initial Data (REVISED AGAIN) ---
 generated_severity_data, generated_time_series_data, generated_industry_data = generate_actual_data()
 
 st.header("Initial Data Overview")
 
-# Plot Severity (Using the generated_severity_data)
+# Plot Severity (Targeted Fix for Line 183 Error)
 st.subheader("Severity Plot Data Check:")
-st.dataframe(generated_severity_data.head()) # <-- DEBUG LINE ADDED
+st.write("Columns in severity data before plot:", generated_severity_data.columns.tolist() if generated_severity_data is not None else "None")
+st.dataframe(generated_severity_data.head() if generated_severity_data is not None else "None")
 
-if generated_severity_data is not None and not generated_severity_data.empty and all(col in generated_severity_data.columns for col in ['Category', 'Severity']):
-    try:
-        fig_severity = px.bar(generated_severity_data, x='Category', y='Severity',
-                             title='Overall Pain Points by Severity', color='Severity',
-                             color_continuous_scale=['green', 'yellow', 'red'])
-        fig_severity.update_layout(yaxis=dict(range=[0, 3.5]))
-        st.plotly_chart(fig_severity)
-    except ValueError as ve:
-        st.error(f"ValueError during severity plot: {ve}")
-        st.error("Data columns received by px.bar:")
-        st.dataframe(generated_severity_data.head()) # Show data again on error
-    except Exception as e:
-        st.error(f"Error generating severity plot: {e}")
+if generated_severity_data is not None and not generated_severity_data.empty:
+    # <<< EXPLICIT CHECK FOR COLUMNS >>>
+    if all(col in generated_severity_data.columns for col in ['Category', 'Severity']):
+        try:
+            fig_severity = px.bar(generated_severity_data, x='Category', y='Severity',
+                                 title='Overall Pain Points by Severity', color='Severity',
+                                 color_continuous_scale=['green', 'yellow', 'red'])
+            fig_severity.update_layout(yaxis=dict(range=[0, 3.5]))
+            st.plotly_chart(fig_severity)
+        except Exception as e:
+            st.error(f"Error during severity plot creation: {e}")
+    else:
+        # Error if columns are wrong AFTER checking they exist in the DataFrame
+        st.error(f"CRITICAL ERROR: Severity data has wrong columns just before plotting! Found: {generated_severity_data.columns.tolist()}")
 else:
-    st.warning("Initial Severity data unavailable or invalid for plotting.")
+    st.warning("Initial Severity data unavailable or empty for plotting.")
 
-# Plot Time Series (Using the generated_time_series_data)
+# Plot Time Series (Targeted Fix for Line 168 Error)
 if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
-    # <<< MODIFIED: Only plot if mentions data is not empty >>>
+    # <<< WRAP PLOT IN NON-EMPTY CHECK >>>
     if not generated_time_series_data['Mentions'].empty:
         try:
             fig_time = px.line(generated_time_series_data, x='Date', y='Mentions',
                               title='Overall Pain Points Mentions Over Time')
-            # Safely calculate y-axis range inside the check
             max_mentions = generated_time_series_data['Mentions'].max()
             y_range_time = [0, max_mentions * 1.2 if max_mentions > 0 else 10]
             fig_time.update_layout(yaxis=dict(range=y_range_time))
@@ -513,7 +509,7 @@ if generated_time_series_data is not None and not generated_time_series_data.emp
         except Exception as e:
             st.error(f"Error generating time series plot: {e}")
     else:
-        st.info("No initial time series mention data to plot.")
+        st.info("No initial time series mentions to plot.") # Inform if empty
 else:
     st.warning("Initial Time series data unavailable or invalid for plotting.")
 
@@ -638,12 +634,11 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend - Check current_time_series_data
+        # Time series trend - (Targeted Fix for Line 188 Error)
         if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
-             # <<< MODIFIED: Only plot if mentions data is not empty >>>
-             if not current_time_series_data['Mentions'].empty:
+            # <<< WRAP PLOT IN NON-EMPTY CHECK >>>
+            if not current_time_series_data['Mentions'].empty:
                 try:
-                    # Determine y-axis range safely for this plot
                     max_mentions_trend = current_time_series_data['Mentions'].max()
                     y_range_trend = [0, max_mentions_trend * 1.2 if max_mentions_trend > 0 else 10]
 
@@ -679,8 +674,8 @@ if view_type == "Detailed Analysis":
 
                 except Exception as e:
                     st.error(f"Error generating filtered trend plot: {e}")
-             else:
-                 st.info("No time series mention data to plot for the selected filters.")
+            else:
+                 st.info("No time series mentions to plot for the selected filters.") # Inform if empty
         else:
             st.warning("Filtered Time series data unavailable or invalid for plotting.")
 
