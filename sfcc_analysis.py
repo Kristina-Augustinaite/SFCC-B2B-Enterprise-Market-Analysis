@@ -438,8 +438,8 @@ analysis_methodology = {
     }
 }
 
-# Sample data generation for visualizations (REVISED - No severity return)
-def generate_actual_data():
+# Sample data generation for visualizations (FINAL REVISION - Only Time/Industry)
+def generate_time_industry_data():
     try:
         # 1. GENERATE TIME SERIES DATA
         dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='ME')
@@ -454,76 +454,68 @@ def generate_actual_data():
             'Count': [25, 18, 15, 12, 10, 8, 7, 6],
             'Pain_Points': [15, 12, 8, 6, 5, 4, 3, 2]
         })
-
-        # 3. RETURN ONLY TIME & INDUSTRY
         return time_series_df, industry_df
     except Exception as e:
-        st.error(f"Error generating initial analysis data: {str(e)}")
-        # Return empty dataframes with expected columns on error
+        st.error(f"Error generating time/industry data: {str(e)}")
         return pd.DataFrame(columns=['Date', 'Mentions']), pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# --- Generate and Plot Initial Data ---
-generated_time_series_data, generated_industry_data = generate_actual_data()
+# --- Generate and Plot Initial Data (FINAL REVISION) ---
+
+# Generate only time and industry data
+generated_time_series_data, generated_industry_data = generate_time_industry_data()
 st.header("Initial Data Overview")
 
-# Plot Severity (Targeted Fix for Line 183 Error - USE GLOBAL DF DIRECTLY)
-st.subheader("Severity Plot Check:")
-st.write("Using global_severity_df directly. Columns:", global_severity_df.columns.tolist() if global_severity_df is not None else "None")
-st.dataframe(global_severity_df.head() if global_severity_df is not None else "None")
-
-if global_severity_df is not None and not global_severity_df.empty and all(col in global_severity_df.columns for col in ['Category', 'Severity']):
-    try:
-        # <<< Use global_severity_df directly, selecting columns >>>
-        fig_severity = px.bar(global_severity_df, x='Category', y='Severity',
-                             title='Overall Pain Points by Severity', color='Severity',
-                             color_continuous_scale=['green', 'yellow', 'red'])
-        fig_severity.update_layout(yaxis=dict(range=[0, 3.5]))
-        st.plotly_chart(fig_severity)
-    except Exception as e:
-        st.error(f"Error during severity plot creation (Line ~183): {e}")
-        st.exception(e)
-else:
-    st.warning("Global Severity data unavailable or invalid for plotting.")
-
-# Plot Time Series (Targeted Fix for Line 168 Error - TRY/EXCEPT RANGE)
-if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
-    try:
-        fig_time = px.line(generated_time_series_data, x='Date', y='Mentions',
-                          title='Overall Pain Points Mentions Over Time')
-        # <<< Calculate range with try/except >>>
+# Plot Severity - Use global_severity_df directly and check columns
+st.subheader("Overall Pain Points by Severity")
+if global_severity_df is not None and not global_severity_df.empty:
+    # Check required columns explicitly
+    if all(col in global_severity_df.columns for col in ['Category', 'Severity']):
         try:
-            mentions_initial = generated_time_series_data['Mentions']
-            if not mentions_initial.empty:
-                max_mentions_initial = mentions_initial.max()
-                y_range_initial = [0, max_mentions_initial * 1.2 if max_mentions_initial > 0 else 10]
-            else:
-                y_range_initial = [0, 10] # Default if empty
-        except Exception:
-            y_range_initial = [0, 10] # Default on any error
-
-        fig_time.update_layout(yaxis=dict(range=y_range_initial))
-        st.plotly_chart(fig_time)
-    except Exception as e:
-        st.error(f"Error generating initial time series plot (Line ~168): {e}")
-        st.exception(e)
+            fig_severity = px.bar(global_severity_df, x='Category', y='Severity',
+                                 color='Severity', color_continuous_scale=['green', 'yellow', 'red'])
+            fig_severity.update_layout(yaxis_title="Severity Level (1-3)", xaxis_title="Pain Point Category", yaxis=dict(range=[0, 3.5]))
+            st.plotly_chart(fig_severity)
+        except Exception as e:
+            st.error(f"Error plotting severity: {e}")
+            st.exception(e)
+    else:
+        st.error(f"Global severity data missing required columns. Found: {global_severity_df.columns.tolist()}")
 else:
-    st.warning("Initial Time series data unavailable or invalid for plotting.")
+    st.warning("Global Severity data unavailable.")
 
-# Plot Industry (Using the generated_industry_data)
-# Check the variable derived *directly* from the function return
+# Plot Time Series - Check data and non-empty mentions before plotting/max()
+st.subheader("Overall Pain Points Mentions Over Time")
+if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
+    # Only proceed if there are mentions to plot
+    if not generated_time_series_data['Mentions'].empty:
+        try:
+            fig_time = px.line(generated_time_series_data, x='Date', y='Mentions')
+            # Calculate range only if plotting
+            max_mentions = generated_time_series_data['Mentions'].max()
+            y_range = [0, max_mentions * 1.2 if max_mentions > 0 else 10]
+            fig_time.update_layout(yaxis_title="Number of Mentions", xaxis_title="Date", yaxis=dict(range=y_range))
+            st.plotly_chart(fig_time)
+        except Exception as e:
+            st.error(f"Error plotting time series: {e}")
+            st.exception(e)
+    else:
+        st.info("No initial time series mentions to plot.")
+else:
+    st.warning("Initial Time series data unavailable or invalid.")
+
+# Plot Industry - Check data before plotting
+st.subheader("Overall Industry Distribution and Pain Points")
 if generated_industry_data is not None and not generated_industry_data.empty and all(col in generated_industry_data.columns for col in ['Industry', 'Count', 'Pain_Points']):
     try:
-        fig_industry = px.bar(generated_industry_data, x='Industry', y=['Count', 'Pain_Points'],
-                             title='Overall Industry Distribution and Pain Points',
-                             barmode='group')
+        fig_industry = px.bar(generated_industry_data, x='Industry', y=['Count', 'Pain_Points'], barmode='group')
         fig_industry.update_layout(xaxis_title="Industry", yaxis_title="Count", legend_title="Metric")
         st.plotly_chart(fig_industry)
     except Exception as e:
-        st.error(f"Error generating industry plot: {e}")
+        st.error(f"Error plotting industry data: {e}")
 else:
-    st.warning("Initial Industry data unavailable or invalid for plotting.")
+    st.warning("Initial Industry data unavailable or invalid.")
 
-# --- Sidebar filters (REVISED - use GENERATED data for setup) ---
+# --- Sidebar filters (REVISED - use only GENERATED time/industry data) ---
 st.sidebar.header("⚙️ Filters")
 view_type = st.sidebar.radio("Select View", ["Detailed Analysis", "Raw Data"])
 
@@ -561,10 +553,9 @@ industry_filter = st.sidebar.multiselect(
     default=available_industries, disabled=not available_industries
 )
 
-# --- Apply filters (REVISED - use GENERATED data as base) ---
+# --- Apply filters (REVISED - use only GENERATED time/industry as base) ---
 time_series_data_filtered = pd.DataFrame()
 industry_data_filtered = pd.DataFrame()
-# Use the variables holding the freshly generated data as the base for filtering
 base_time_series_data = generated_time_series_data
 base_industry_data = generated_industry_data
 
@@ -588,6 +579,7 @@ try:
     # Update Current Data Variables (The ones used for display)
     current_time_series_data = time_series_data_filtered if not time_series_data_filtered.empty else base_time_series_data
     current_industry_data = industry_data_filtered if not industry_data_filtered.empty else base_industry_data
+    # current_severity_data is no longer needed here, plots use global_severity_df
 
     # Calculate Metrics Safely (using current_time_series_data)
     total_mentions, avg_mentions, growth = 0, 0, 0
@@ -609,7 +601,7 @@ except Exception as e:
     total_mentions, avg_mentions, growth = 0, 0, 0 # Reset metrics on error
     # (Optional: Add metric recalc here if needed for fallback state)
 
-# --- Display Section ---
+# --- Display Section (REVISED - Use global_severity_df and check time series) ---
 # Display active filters
 active_filters = []
 if start_quarter and end_quarter:
@@ -627,53 +619,45 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend (Targeted Fix for Line 188 Error - TRY/EXCEPT RANGE)
+        # Time series trend - Check current_time_series_data and non-empty mentions
         if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
-            try:
-                # <<< Calculate range with try/except >>>
+            if not current_time_series_data['Mentions'].empty:
                 try:
-                    mentions_filtered = current_time_series_data['Mentions']
-                    if not mentions_filtered.empty:
-                        max_mentions_filtered = mentions_filtered.max()
-                        y_range_filtered = [0, max_mentions_filtered * 1.2 if max_mentions_filtered > 0 else 10]
-                    else:
-                        y_range_filtered = [0, 10] # Default if empty
-                except Exception:
-                     y_range_filtered = [0, 10] # Default on any error
-
-                fig_trend = go.Figure()
-                fig_trend.add_trace(go.Scatter(
-                    x=current_time_series_data['Date'], y=current_time_series_data['Mentions'],
-                    fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.1)',
-                    line=dict(color='#FF4B4B', width=3), mode='lines+markers+text',
-                    text=current_time_series_data['Mentions'], textposition='top center',
-                    marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
-                    hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
-                ))
-
-                fig_trend.update_layout(
-                    title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
-                    height=450, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_filtered, tickformat='d'),
-                    xaxis=dict(title="Date", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)'),
-                    showlegend=False, hovermode='x unified'
-                )
-                st.plotly_chart(fig_trend, use_container_width=True)
-
-                # Metrics display
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Mentions (Filtered)", f"{total_mentions:,}")
-                with col2:
-                    st.metric("Average Monthly (Filtered)", f"{avg_mentions:.1f}")
-                with col3:
-                    growth_display = f"{growth:.0f}%" if growth != float('inf') else "∞%"
-                    st.metric("Overall Growth (Filtered)", growth_display, delta="↗️" if growth > 0 else ("➡️" if growth == 0 else "↘️"))
-                st.info("🔍 **Trend Analysis (Filtered):** Reflects mentions within the selected time period and industries.")
-
-            except Exception as e:
-                st.error(f"Error generating filtered trend plot (Line ~188): {e}")
-                st.exception(e)
+                    fig_trend = go.Figure()
+                    fig_trend.add_trace(go.Scatter(
+                        x=current_time_series_data['Date'], y=current_time_series_data['Mentions'],
+                        fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.1)',
+                        line=dict(color='#FF4B4B', width=3), mode='lines+markers+text',
+                        text=current_time_series_data['Mentions'], textposition='top center',
+                        marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
+                        hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
+                    ))
+                    # Calculate range only if plotting
+                    max_mentions_trend = current_time_series_data['Mentions'].max()
+                    y_range_trend = [0, max_mentions_trend * 1.2 if max_mentions_trend > 0 else 10]
+                    fig_trend.update_layout(
+                        title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+                        height=450, template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                        yaxis=dict(title="Number of Mentions", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)', range=y_range_trend, tickformat='d'),
+                        xaxis=dict(title="Date", gridcolor='rgba(128,128,128,0.1)', zerolinecolor='rgba(128,128,128,0.1)'),
+                        showlegend=False, hovermode='x unified'
+                    )
+                    st.plotly_chart(fig_trend, use_container_width=True)
+                    # Metrics display
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Mentions (Filtered)", f"{total_mentions:,}")
+                    with col2:
+                        st.metric("Average Monthly (Filtered)", f"{avg_mentions:.1f}")
+                    with col3:
+                        growth_display = f"{growth:.0f}%" if growth != float('inf') else "∞%"
+                        st.metric("Overall Growth (Filtered)", growth_display, delta="↗️" if growth > 0 else ("➡️" if growth == 0 else "↘️"))
+                    st.info("🔍 **Trend Analysis (Filtered):** Reflects mentions within the selected time period and industries.")
+                except Exception as e:
+                    st.error(f"Error generating filtered trend plot: {e}")
+                    st.exception(e)
+            else:
+                 st.info("No time series mentions to plot for the selected filters.")
         else:
             st.warning("Filtered Time series data unavailable or invalid for plotting.")
 
@@ -699,7 +683,7 @@ if view_type == "Detailed Analysis":
         else:
             st.warning("No industry data to display for the selected filters.")
 
-    # Pain Points Definitions Section
+    # Pain Points Definitions Section - Uses global_severity_df
     st.subheader("Pain Points Definitions & Severity")
     if global_severity_df is not None and not global_severity_df.empty:
         st.dataframe(global_severity_df[['Category', 'Description', 'Severity_Label']], use_container_width=True)
