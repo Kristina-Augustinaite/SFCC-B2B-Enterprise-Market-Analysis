@@ -457,10 +457,22 @@ except Exception as e:
     generated_time_series_data = pd.DataFrame(columns=['Date', 'Mentions'])
     generated_industry_data = pd.DataFrame(columns=['Industry', 'Count', 'Pain_Points'])
 
-# --- Plot Initial Data ---
+# --- Main App Layout ---
+st.title("📊 SFCC B2B/Enterprise Analysis: Strengths & Pain Points")
+
+# <<< ADD Executive Summary Placeholder >>>
+st.subheader("Executive Summary")
+st.markdown("""
+This analysis synthesizes feedback regarding Salesforce Commerce Cloud (SFCC) in the B2B and Enterprise space.
+Key findings highlight significant pain points related to **Cost** and **Complexity**, alongside strengths in core B2B functionality.
+Detailed breakdowns by industry and time period are available below.
+""")
+st.markdown("---")
+
+# --- Plot Initial Data --- (With fixes)
 st.header("Initial Data Overview")
 
-# <<< Plot Severity - UNCOMMENTED with direct global_severity_df use >>>
+# Plot Severity - Use global_severity_df directly and check columns
 st.subheader("Overall Pain Points by Severity")
 if global_severity_df is not None and not global_severity_df.empty:
     if all(col in global_severity_df.columns for col in ['Category', 'Severity']):
@@ -476,14 +488,13 @@ if global_severity_df is not None and not global_severity_df.empty:
         st.error(f"Global severity data missing required columns for plot. Found: {global_severity_df.columns.tolist()}")
 else:
     st.warning("Global Severity data unavailable.")
-# st.warning("Initial Severity Plot temporarily disabled for debugging.") # Remove warning
 
 # Plot Time Series - Strengthen try/except for range calculation
 st.subheader("Overall Pain Points Mentions Over Time")
 if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
     try:
         fig_time = px.line(generated_time_series_data, x='Date', y='Mentions')
-        # <<< Calculate range with strengthened try/except >>>
+        # Calculate range with strengthened try/except
         y_range_initial = [0, 10] # Start with default
         try:
             mentions_initial = generated_time_series_data['Mentions']
@@ -613,26 +624,21 @@ if active_filters:
 if view_type == "Detailed Analysis":
     st.header("🔎 Detailed Analysis (Filtered)")
     
-    # <<< ADD Methodology Section >>>
+    # <<< ENSURE Methodology Section is present >>>
     with st.expander("🔬 Analysis Methodology & Data Processing", expanded=False):
         st.markdown("**Data Source:**")
         st.caption(analysis_methodology["transcript_filtering"]["source"])
         st.markdown(f"**Total Sentences Analyzed:** {analysis_methodology['transcript_filtering']['total_sentences']}")
-
         st.markdown("**Filtering Criteria:**")
         for criterion in analysis_methodology["transcript_filtering"]["filtering_criteria"]:
             st.markdown(f"- {criterion}")
-
         st.markdown("**Filtering Process:**")
         for i, step in enumerate(analysis_methodology["transcript_filtering"]["filtering_process"]):
-             st.markdown(f"{step}") # Use numbered steps if needed, or keep as list
-
+             st.markdown(f"{step}")
         st.markdown("**Sentiment Analysis Approach:**")
         for section in analysis_methodology["sentiment_analysis"]["approach"]:
              st.markdown(f"- {section}")
-
         st.markdown("**Industry Examples (Pain Points, Challenges, Integrations):**")
-        # Display industry examples more neatly
         industry_tabs = st.tabs(analysis_methodology["sentiment_analysis"]["industry_examples"].keys())
         for i, (industry, details) in enumerate(analysis_methodology["sentiment_analysis"]["industry_examples"].items()):
             with industry_tabs[i]:
@@ -649,9 +655,6 @@ if view_type == "Detailed Analysis":
                     st.markdown("***Integrations:***")
                     for integration in details["Integrations"]:
                          st.caption(f"- {integration}")
-                # Optionally display detailed use cases if needed
-                # if "Detailed Use Cases" in details:
-                #    st.json(details["Detailed Use Cases"])
 
     # --- Filtered Data Overview ---
     st.subheader("📊 Filtered Data Overview")
@@ -670,7 +673,7 @@ if view_type == "Detailed Analysis":
                     marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
                     hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
                 ))
-                # <<< Calculate range with strengthened try/except >>>
+                # Calculate range with strengthened try/except
                 y_range_filtered = [0, 10] # Start with default
                 try:
                     mentions_filtered = current_time_series_data['Mentions']
