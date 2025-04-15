@@ -460,40 +460,39 @@ except Exception as e:
 # --- Plot Initial Data ---
 st.header("Initial Data Overview")
 
-# <<< Plot Severity - TEMPORARILY COMMENTED OUT FOR DEBUGGING >>>
-# st.subheader("Overall Pain Points by Severity")
-# if global_severity_df is not None and not global_severity_df.empty:
-#     if all(col in global_severity_df.columns for col in ['Category', 'Severity']):
-#         try:
-#             fig_severity = px.bar(global_severity_df, x='Category', y='Severity',
-#                                  color='Severity', color_continuous_scale=['green', 'yellow', 'red'])
-#             fig_severity.update_layout(yaxis_title="Severity Level (1-3)", xaxis_title="Pain Point Category", yaxis=dict(range=[0, 3.5]))
-#             st.plotly_chart(fig_severity)
-#         except Exception as e:
-#             st.error(f"Error plotting severity (Line ~183): {e}")
-#             st.exception(e)
-#     else:
-#         st.error(f"Global severity data missing required columns for plot. Found: {global_severity_df.columns.tolist()}")
-# else:
-#     st.warning("Global Severity data unavailable.")
-st.warning("Initial Severity Plot temporarily disabled for debugging.") # Add warning
+# <<< Plot Severity - UNCOMMENTED with direct global_severity_df use >>>
+st.subheader("Overall Pain Points by Severity")
+if global_severity_df is not None and not global_severity_df.empty:
+    if all(col in global_severity_df.columns for col in ['Category', 'Severity']):
+        try:
+            fig_severity = px.bar(global_severity_df, x='Category', y='Severity',
+                                 color='Severity', color_continuous_scale=['green', 'yellow', 'red'])
+            fig_severity.update_layout(yaxis_title="Severity Level (1-3)", xaxis_title="Pain Point Category", yaxis=dict(range=[0, 3.5]))
+            st.plotly_chart(fig_severity)
+        except Exception as e:
+            st.error(f"Error plotting severity (Line ~183): {e}")
+            st.exception(e)
+    else:
+        st.error(f"Global severity data missing required columns for plot. Found: {global_severity_df.columns.tolist()}")
+else:
+    st.warning("Global Severity data unavailable.")
+# st.warning("Initial Severity Plot temporarily disabled for debugging.") # Remove warning
 
-# Plot Time Series - Add try/except for range calculation
+# Plot Time Series - Strengthen try/except for range calculation
 st.subheader("Overall Pain Points Mentions Over Time")
 if generated_time_series_data is not None and not generated_time_series_data.empty and all(col in generated_time_series_data.columns for col in ['Date', 'Mentions']):
     try:
         fig_time = px.line(generated_time_series_data, x='Date', y='Mentions')
-        # Calculate range with try/except
+        # <<< Calculate range with strengthened try/except >>>
+        y_range_initial = [0, 10] # Start with default
         try:
             mentions_initial = generated_time_series_data['Mentions']
-            y_range_initial = [0, 10] # Default range
             if not mentions_initial.empty:
                 max_mentions_initial = mentions_initial.max()
-                # Only update range if max > 0
-                if max_mentions_initial > 0:
+                if pd.notna(max_mentions_initial) and max_mentions_initial > 0:
                      y_range_initial = [0, max_mentions_initial * 1.2]
-        except ValueError: # Catch potential error during max()
-            y_range_initial = [0, 10] # Fallback range
+        except (ValueError, TypeError): # Catch errors during max() or comparison
+            pass # Keep default range [0, 10]
 
         fig_time.update_layout(yaxis_title="Number of Mentions", xaxis_title="Date", yaxis=dict(range=y_range_initial))
         st.plotly_chart(fig_time)
@@ -659,7 +658,7 @@ if view_type == "Detailed Analysis":
     overview_tab1, overview_tab2 = st.tabs(["Trends", "Industry Distribution"])
 
     with overview_tab1:
-        # Time series trend - Add try/except for range calculation
+        # Time series trend - Strengthen try/except for range calculation
         if current_time_series_data is not None and not current_time_series_data.empty and all(col in current_time_series_data.columns for col in ['Date', 'Mentions']):
             try:
                 fig_trend = go.Figure()
@@ -671,17 +670,16 @@ if view_type == "Detailed Analysis":
                     marker=dict(size=10, symbol='circle', line=dict(color='#FF4B4B', width=2)),
                     hovertemplate='%{x|%Y-%m-%d}<br>Mentions: %{y}<extra></extra>'
                 ))
-                # Calculate range with try/except
+                # <<< Calculate range with strengthened try/except >>>
+                y_range_filtered = [0, 10] # Start with default
                 try:
                     mentions_filtered = current_time_series_data['Mentions']
-                    y_range_filtered = [0, 10] # Default range
                     if not mentions_filtered.empty:
                         max_mentions_filtered = mentions_filtered.max()
-                        # Only update range if max > 0
-                        if max_mentions_filtered > 0:
+                        if pd.notna(max_mentions_filtered) and max_mentions_filtered > 0:
                              y_range_filtered = [0, max_mentions_filtered * 1.2]
-                except ValueError: # Catch potential error during max()
-                     y_range_filtered = [0, 10] # Fallback range
+                except (ValueError, TypeError): # Catch errors during max() or comparison
+                     pass # Keep default range [0, 10]
 
                 fig_trend.update_layout(
                     title={'text': 'SFCC Pain Points Mentions Over Time (Filtered)', 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
